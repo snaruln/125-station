@@ -3,159 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>收租與水電數位小卡</title>
+    <title>Sandy & Hailey 數位收租小卡</title>
     <style>
+        /* --- 視覺風格 --- */
+        :root {
+            --pink: #FFD1DC;
+            --blue: #AEC6CF;
+            --yellow: #FFFACD;
+            --text: #5d5d5d;
+            --bg: linear-gradient(135deg, #FFE4E1 0%, #FFFACD 50%, #E0FFFF 100%);
+        }
+
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, 'Microsoft JhengHei', sans-serif;
-            background: linear-gradient(135deg, #FFE4E1 0%, #FFFACD 50%, #E0FFFF 100%);
+            background: var(--bg);
             background-attachment: fixed;
             margin: 0;
-            padding: 20px 15px 120px 15px; /* 底部增加 120px 空間防阻擋 */
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-            color: #333333;
+            padding: 0;
+            color: var(--text);
+            word-break: keep-all;
+            overflow-x: hidden;
         }
 
-        * { word-break: keep-all; } /* 避免中文字不自然斷行 */
-
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-            width: 100%;
-            max-width: 450px;
-            overflow: hidden;
+        /* 登入畫面 */
+        #login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: white;
+            z-index: 1000;
             display: flex;
             flex-direction: column;
-            height: fit-content;
+            justify-content: center;
+            align-items: center;
         }
 
-        .header {
-            text-align: center;
-            padding: 24px 20px;
-            background-color: #FFD1DC;
+        .login-title { font-size: 1.5rem; margin-bottom: 30px; font-weight: bold; }
+        .login-btn {
+            width: 80%; max-width: 300px; padding: 20px;
+            margin: 10px; border: none; border-radius: 15px;
+            font-size: 1.2rem; cursor: pointer; transition: 0.3s;
             font-weight: bold;
-            font-size: 1.3rem;
-            letter-spacing: 2px;
-            color: #4A4A4A;
+        }
+        .btn-s { background-color: var(--pink); color: #d63384; }
+        .btn-h { background-color: var(--blue); color: #084298; }
+
+        /* 主容器 */
+        .container {
+            display: none; /* 登入後才顯示 */
+            max-width: 500px; margin: 0 auto;
+            min-height: 100vh;
+            padding-bottom: 120px; /* 底部緩衝空間 */
         }
 
+        header {
+            background-color: white; padding: 20px;
+            text-align: center; font-size: 1.2rem; font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .user-tag {
+            font-size: 0.8rem; padding: 3px 10px; border-radius: 10px;
+            margin-left: 10px; vertical-align: middle;
+        }
+
+        /* 分頁切換 */
         .tabs {
-            display: flex;
-            overflow-x: auto;
-            background-color: #FFFACD;
-            -webkit-overflow-scrolling: touch;
-            border-bottom: 2px solid #EAEAEA;
+            display: flex; overflow-x: auto; background: white;
+            padding: 10px; border-bottom: 1px solid #eee;
         }
-        
         .tabs::-webkit-scrollbar { display: none; }
+        .tab-btn {
+            flex: 0 0 auto; padding: 10px 15px; border: none;
+            background: none; font-size: 1rem; color: #888;
+            cursor: pointer; transition: 0.3s;
+        }
+        .tab-btn.active { color: #000; font-weight: bold; border-bottom: 3px solid var(--blue); }
 
-        .tab-link {
-            flex: 0 0 auto;
-            background: none;
-            border: none;
-            outline: none;
-            padding: 16px 20px;
-            cursor: pointer;
-            font-size: 1rem;
-            color: #777;
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            font-weight: 500;
+        /* 內容區 */
+        .content { padding: 20px; }
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px; padding: 15px; margin-bottom: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            display: flex; align-items: center; justify-content: space-between;
         }
 
-        .tab-link.active {
-            background-color: #AEC6CF;
-            color: #1C1C1C;
-            font-weight: bold;
-            border-bottom: 3px solid #7BA6B6;
+        .item-info { flex-grow: 1; cursor: pointer; }
+        .item-date { font-size: 1.1rem; font-weight: bold; }
+        .item-price { font-size: 0.9rem; color: #888; }
+
+        .checkbox {
+            width: 30px; height: 30px; border: 2px solid var(--pink);
+            border-radius: 8px; display: flex; align-items: center;
+            justify-content: center; cursor: pointer; background: white;
         }
+        .checkbox.checked::after { content: '✔'; color: #d63384; font-size: 1.2rem; }
 
-        .tab-content {
-            display: none;
-            padding: 30px 24px;
-            min-height: 250px;
-            animation: fadeIn 0.4s ease-in-out;
-        }
-
-        .tab-content.active { display: block; }
-
-        .info-item {
-            padding: 15px 18px;
-            margin-bottom: 16px;
-            border-radius: 10px;
-            background-color: #FAFAFA;
-            font-size: 1.05rem;
-            line-height: 1.6;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-            border-left: 6px solid #FFD1DC;
-        }
-
-        #rent .info-item { border-left-color: #FFD1DC; }
-        #water .info-item { border-left-color: #AEC6CF; }
-        #gas .info-item { border-left-color: #FFFACD; }
-        #internet .info-item { border-left-color: #FFD1DC; }
-        #others .info-item { border-left-color: #AEC6CF; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="card">
-        <div class="header">收租與水電明細</div>
-
-        <div class="tabs">
-            <button class="tab-link active" onclick="openTab(event, 'rent')">每週房租</button>
-            <button class="tab-link" onclick="openTab(event, 'water')">水費</button>
-            <button class="tab-link" onclick="openTab(event, 'gas')">電費煤氣</button>
-            <button class="tab-link" onclick="openTab(event, 'internet')">網路</button>
-            <button class="tab-link" onclick="openTab(event, 'others')">其他</button>
-        </div>
-
-        <div id="rent" class="tab-content active">
-            <div class="info-item">○○</div>
-            <div class="info-item">○○</div>
-        </div>
-
-        <div id="water" class="tab-content">
-            <div class="info-item">○○</div>
-            <div class="info-item">○○</div>
-        </div>
-
-        <div id="gas" class="tab-content">
-            <div class="info-item">○○</div>
-            <div class="info-item">○○</div>
-        </div>
-
-        <div id="internet" class="tab-content">
-            <div class="info-item">○○</div>
-        </div>
-
-        <div id="others" class="tab-content">
-            <div class="info-item">○○</div>
-        </div>
-    </div>
-
-    <script>
-        function openTab(evt, tabName) {
-            var i, tabcontent, tablinks;
-            tabcontent = document.getElementsByClassName("tab-content");
-            for (i = 0; i < tabcontent.length; i++) {
-                tabcontent[i].classList.remove("active");
-            }
-            tablinks = document.getElementsByClassName("tab-link");
-            for (i = 0; i < tablinks.length; i++) {
-                tablinks[i].classList.remove("active");
-            }
-            document.getElementById(tabName).classList.add("active");
-            evt.currentTarget.classList.add("active");
-        }
-    </script>
-</body>
-</html>
+        /* 彈出視窗 (Modal) */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            z-index:
