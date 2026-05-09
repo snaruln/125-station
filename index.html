@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sandy & Hailey 數位收租小卡</title>
+    <title>收租小卡</title>
     <style>
         /* --- 視覺風格 --- */
         :root {
@@ -25,11 +25,13 @@
             overflow-x: hidden;
         }
 
-        /* 登入畫面 */
+        /* 登入畫面 (毛玻璃效果) */
         #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: white;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 1000;
             display: flex;
             flex-direction: column;
@@ -37,12 +39,12 @@
             align-items: center;
         }
 
-        .login-title { font-size: 1.5rem; margin-bottom: 30px; font-weight: bold; }
+        .login-title { font-size: 1.6rem; margin-bottom: 30px; font-weight: bold; color: #4A4A4A; }
         .login-btn {
             width: 80%; max-width: 300px; padding: 20px;
             margin: 10px; border: none; border-radius: 15px;
             font-size: 1.2rem; cursor: pointer; transition: 0.3s;
-            font-weight: bold;
+            font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         .btn-s { background-color: var(--pink); color: #d63384; }
         .btn-h { background-color: var(--blue); color: #084298; }
@@ -57,14 +59,15 @@
 
         header {
             background-color: white; padding: 20px;
-            text-align: center; font-size: 1.2rem; font-weight: bold;
+            text-align: center; font-size: 1.3rem; font-weight: bold;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             position: sticky; top: 0; z-index: 100;
+            color: #4A4A4A;
         }
 
         .user-tag {
-            font-size: 0.8rem; padding: 3px 10px; border-radius: 10px;
-            margin-left: 10px; vertical-align: middle;
+            font-size: 0.8rem; padding: 5px 12px; border-radius: 20px;
+            margin-left: 10px; vertical-align: middle; display: inline-block;
         }
 
         /* 分頁切換 */
@@ -74,34 +77,240 @@
         }
         .tabs::-webkit-scrollbar { display: none; }
         .tab-btn {
-            flex: 0 0 auto; padding: 10px 15px; border: none;
-            background: none; font-size: 1rem; color: #888;
+            flex: 0 0 auto; padding: 12px 15px; border: none;
+            background: none; font-size: 1.05rem; color: #aaa;
             cursor: pointer; transition: 0.3s;
         }
-        .tab-btn.active { color: #000; font-weight: bold; border-bottom: 3px solid var(--blue); }
+        .tab-btn.active { color: #1C1C1C; font-weight: bold; border-bottom: 3px solid var(--blue); }
 
         /* 內容區 */
         .content { padding: 20px; }
         .card {
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 15px; padding: 15px; margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px; padding: 18px; margin-bottom: 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.03);
             display: flex; align-items: center; justify-content: space-between;
         }
 
         .item-info { flex-grow: 1; cursor: pointer; }
-        .item-date { font-size: 1.1rem; font-weight: bold; }
-        .item-price { font-size: 0.9rem; color: #888; }
+        .item-date { font-size: 1.15rem; font-weight: bold; color: #333; margin-bottom: 4px; }
+        .item-price { font-size: 0.95rem; color: #7BA6B6; font-weight: bold; }
 
         .checkbox {
-            width: 30px; height: 30px; border: 2px solid var(--pink);
+            width: 32px; height: 32px; border: 3px solid var(--pink);
             border-radius: 8px; display: flex; align-items: center;
             justify-content: center; cursor: pointer; background: white;
+            transition: 0.2s;
         }
-        .checkbox.checked::after { content: '✔'; color: #d63384; font-size: 1.2rem; }
+        .checkbox.checked { background-color: var(--pink); }
+        .checkbox.checked::after { content: '✔'; color: white; font-size: 1.2rem; font-weight: bold; }
 
         /* 彈出視窗 (Modal) */
         .modal {
             display: none; position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%; background: rgba(0,0,0,0.5);
-            z-index:
+            width: 100%; height: 100%; background: rgba(0,0,0,0.6);
+            z-index: 200; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: white; width: 85%; max-width: 400px;
+            padding: 25px; border-radius: 20px; position: relative;
+        }
+        .close-modal { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; color: #888; }
+
+        /* 其他分頁文字框 */
+        textarea {
+            width: 100%; border: 1px solid #ddd; border-radius: 15px;
+            padding: 15px; height: 250px; font-size: 1.05rem;
+            box-sizing: border-box; resize: none;
+            background: rgba(255,255,255,0.8);
+            line-height: 1.5;
+        }
+
+        /* 預覽照片 */
+        .photo-preview {
+            width: 100%; height: 220px; background: #f9f9f9;
+            border-radius: 10px; margin: 15px 0; display: flex;
+            align-items: center; justify-content: center; overflow: hidden;
+            border: 2px dashed #ccc; color: #aaa;
+        }
+        .photo-preview img { width: 100%; height: 100%; object-fit: contain; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <div class="login-title">請選擇登入身分</div>
+        <button class="login-btn btn-s" onclick="login('S')">Sandy (房東 S)</button>
+        <button class="login-btn btn-h" onclick="login('H')">Hailey (租客 H)</button>
+    </div>
+
+    <div class="container" id="main-container">
+        <header>
+            收租與水電明細 <span id="current-user-tag" class="user-tag"></span>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('rent')">每週房租</button>
+            <button class="tab-btn" onclick="switchTab('water')">水費</button>
+            <button class="tab-btn" onclick="switchTab('energy')">電費煤氣</button>
+            <button class="tab-btn" onclick="switchTab('net')">網路</button>
+            <button class="tab-btn" onclick="switchTab('others')">其他</button>
+        </div>
+
+        <div class="content" id="tab-content">
+            </div>
+    </div>
+
+    <div class="modal" id="detail-modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h3 id="modal-date" style="margin-top:0;">日期</h3>
+            <p id="modal-price" style="color: #7BA6B6; font-weight: bold; font-size: 1.1rem;">金額</p>
+            <div class="photo-preview" id="photo-preview">
+                <span>點擊下方按鈕上傳收據</span>
+            </div>
+            <input type="file" id="photo-input" accept="image/*" style="display: none;" onchange="handlePhoto(this)">
+            <button class="login-btn btn-h" style="width: 100%; margin: 0;" onclick="triggerUpload()">上傳/更改照片</button>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = '';
+        let currentTab = 'rent';
+        let currentItemKey = '';
+
+        // 資料初始化 (由 LocalStorage 讀取)
+        let appData = JSON.parse(localStorage.getItem('rentData')) || {
+            checks: {},
+            photos: {},
+            others: '',
+            water: '○○\n○○',
+            energy: '○○\n○○'
+        };
+
+        function login(user) {
+            currentUser = user;
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('main-container').style.display = 'block';
+            const tag = document.getElementById('current-user-tag');
+            tag.innerText = user === 'S' ? 'Sandy' : 'Hailey';
+            tag.className = 'user-tag ' + (user === 'S' ? 'btn-s' : 'btn-h');
+            renderTab();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            renderTab();
+        }
+
+        function renderTab() {
+            const container = document.getElementById('tab-content');
+            container.innerHTML = '';
+
+            if (currentTab === 'rent') {
+                generateDates('2026-05-17', 7, 52).forEach(date => {
+                    container.appendChild(createCard(date, '400 AUD', 'rent'));
+                });
+            } else if (currentTab === 'net') {
+                generateDates('2026-05-17', 30, 12).forEach(date => {
+                    container.appendChild(createCard(date, '72 AUD', 'net'));
+                });
+            } else if (currentTab === 'others') {
+                const area = document.createElement('textarea');
+                area.value = appData.others;
+                area.placeholder = "Hailey 可以自由在這裡輸入雜項支出與備註...";
+                area.oninput = (e) => {
+                    appData.others = e.target.value;
+                    saveData();
+                };
+                container.appendChild(area);
+            } else if (currentTab === 'water' || currentTab === 'energy') {
+                const area = document.createElement('textarea');
+                area.value = appData[currentTab];
+                if (currentUser === 'H') area.readOnly = true; // Hailey 只能看水電
+                area.oninput = (e) => {
+                    appData[currentTab] = e.target.value;
+                    saveData();
+                };
+                container.appendChild(area);
+            }
+        }
+
+        function createCard(date, price, type) {
+            const key = type + '_' + date;
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <div class="item-info" onclick="openModal('${key}', '${date}', '${price}')">
+                    <div class="item-date">${date}</div>
+                    <div class="item-price">${price}</div>
+                </div>
+                <div class="checkbox ${appData.checks[key] ? 'checked' : ''}" onclick="toggleCheck('${key}')"></div>
+            `;
+            return div;
+        }
+
+        function toggleCheck(key) {
+            appData.checks[key] = !appData.checks[key];
+            saveData();
+            renderTab();
+        }
+
+        function openModal(key, date, price) {
+            currentItemKey = key;
+            document.getElementById('modal-date').innerText = date;
+            document.getElementById('modal-price').innerText = price;
+            const preview = document.getElementById('photo-preview');
+            if (appData.photos[key]) {
+                preview.innerHTML = `<img src="${appData.photos[key]}">`;
+            } else {
+                preview.innerHTML = `<span>點擊下方按鈕上傳收據</span>`;
+            }
+            document.getElementById('detail-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').style.display = 'none';
+        }
+
+        function triggerUpload() {
+            document.getElementById('photo-input').click();
+        }
+
+        function handlePhoto(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    appData.photos[currentItemKey] = e.target.result;
+                    saveData();
+                    openModal(currentItemKey, document.getElementById('modal-date').innerText, document.getElementById('modal-price').innerText);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('rentData', JSON.stringify(appData));
+        }
+
+        // 精準計算日期，避免跨時區問題
+        function generateDates(startStr, gapDays, count) {
+            let dates = [];
+            let [y, m, d] = startStr.split('-');
+            let currDate = new Date(y, m - 1, d); 
+            for (let i = 0; i < count; i++) {
+                let yyyy = currDate.getFullYear();
+                let mm = String(currDate.getMonth() + 1).padStart(2, '0');
+                let dd = String(currDate.getDate()).padStart(2, '0');
+                dates.push(`${yyyy}-${mm}-${dd}`);
+                currDate.setDate(currDate.getDate() + gapDays);
+            }
+            return dates;
+        }
+    </script>
+</body>
+</html>
