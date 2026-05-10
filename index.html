@@ -45,11 +45,21 @@
         /* 主容器與頭部 */
         .container { display: none; max-width: 500px; margin: 0 auto; min-height: 100vh; padding-bottom: 140px; }
         header {
-            background-color: rgba(255, 255, 255, 0.85); padding: 20px;
-            text-align: center; font-size: 1.4rem; font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.85); padding: 20px 15px;
+            text-align: center; font-size: 1.3rem; font-weight: bold;
             box-shadow: 0 4px 15px rgba(0,0,0,0.03); position: sticky; top: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .user-tag { background: var(--baby-blue-ice); color: white; font-size: 0.9rem; padding: 4px 12px; border-radius: 20px; margin-left: 10px; vertical-align: middle; }
+        .header-title-area { display: flex; align-items: center; }
+        .user-tag { background: var(--baby-blue-ice); color: white; font-size: 0.85rem; padding: 4px 10px; border-radius: 20px; margin-left: 8px; vertical-align: middle; }
+        
+        /* 切換身分按鈕 */
+        .logout-btn {
+            background: transparent; border: 1.5px solid var(--periwinkle-3);
+            color: var(--text-light); padding: 5px 12px; border-radius: 12px;
+            font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .logout-btn:active { background: var(--periwinkle-3); color: white; }
 
         /* 分頁按鈕 */
         .tabs { display: flex; overflow-x: auto; background: rgba(255, 255, 255, 0.6); padding: 10px; border-bottom: 2px solid var(--lavender); }
@@ -85,7 +95,7 @@
         /* 劃線效果 */
         .crossed-out .item-date, .crossed-out .item-subtitle, .crossed-out .item-price { text-decoration: line-through; color: #b0bec5; }
 
-        /* 浮動總金額 Bar (智慧狀態) */
+        /* 浮動總金額 Bar */
         .total-bar {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             width: 90%; max-width: 450px; background: var(--text-main); color: white;
@@ -135,8 +145,9 @@
         /* 處理中的遮罩 */
         #loading-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.8); z-index: 300; justify-content: center; align-items: center;
+            background: rgba(255,255,255,0.85); z-index: 300; justify-content: center; align-items: center;
             flex-direction: column; font-size: 1.2rem; font-weight: bold; color: var(--baby-blue-ice);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
         }
     </style>
 </head>
@@ -149,7 +160,12 @@
     </div>
 
     <div class="container" id="main-container">
-        <header>數位收租與水電明細 <span id="current-user-tag" class="user-tag"></span></header>
+        <header>
+            <div class="header-title-area">
+                收租明細 <span id="current-user-tag" class="user-tag"></span>
+            </div>
+            <button class="logout-btn" onclick="logout()">切換身分</button>
+        </header>
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('rent')">每週房租</button>
             <button class="tab-btn" onclick="switchTab('water')">水費</button>
@@ -206,7 +222,8 @@
             <h3 id="modal-date" style="margin-top:0; font-size: 1.2rem; line-height: 1.4;">日期</h3>
             <p id="modal-price" style="color: var(--baby-blue-ice); font-weight: bold; font-size: 1.1rem;">金額</p>
             <div class="photo-grid" id="photo-grid"></div>
-            <input type="file" id="single-photo-input" accept="image/*" style="display: none;" onchange="handleSinglePhotoUpload(this)">
+            
+            <input type="file" id="single-photo-input" accept="image/jpeg, image/png, image/jpg, image/webp" style="display: none;" onchange="handleSinglePhotoUpload(this)">
         </div>
     </div>
 
@@ -219,16 +236,16 @@
         </div>
     </div>
 
-    <div id="loading-overlay">照片處理中，請稍候...</div>
+    <div id="loading-overlay">照片壓縮處理中，請稍候...</div>
 
-    <input type="file" id="batch-photo-input" accept="image/*" style="display: none;" onchange="handleBatchPhotoUpload(this)">
+    <input type="file" id="batch-photo-input" accept="image/jpeg, image/png, image/jpg, image/webp" style="display: none;" onchange="handleBatchPhotoUpload(this)">
 
     <script>
         let currentUser = '';
         let currentTab = 'rent';
         let currentItemKey = '';
 
-        // 資料庫 V6 (絕對防丟失版本)
+        // 資料庫維持 V6 版本架構
         let appData = JSON.parse(localStorage.getItem('rentDataV6')) || {
             checks_S: {}, checks_H: {}, 
             crossed_S: {}, crossed_H: {}, 
@@ -236,12 +253,29 @@
             water: [], energy: [], others: []
         };
 
+        // 網頁載入時自動檢查是否有記住的登入者
+        window.onload = function() {
+            const savedUser = localStorage.getItem('activeUser');
+            if (savedUser) {
+                login(savedUser); // 直接登入，跳過登入畫面
+            }
+        };
+
         function login(user) {
             currentUser = user;
+            localStorage.setItem('activeUser', user); // 記住登入狀態！
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('main-container').style.display = 'block';
             document.getElementById('current-user-tag').innerText = user === 'S' ? 'Sandy' : 'Hailey';
             renderTab();
+        }
+
+        // 切換身分 (登出)
+        function logout() {
+            currentUser = '';
+            localStorage.removeItem('activeUser'); // 清除記住的狀態
+            document.getElementById('main-container').style.display = 'none';
+            document.getElementById('login-overlay').style.display = 'flex';
         }
 
         function switchTab(tab) {
@@ -256,7 +290,6 @@
             const addBtn = document.getElementById('add-item-btn');
             container.innerHTML = '';
             
-            // 判斷按鈕顯示與隱藏
             if (['water', 'energy'].includes(currentTab) && currentUser === 'S') {
                 addBtn.style.display = 'block';
             } else if (currentTab === 'others') {
@@ -265,7 +298,6 @@
                 addBtn.style.display = 'none';
             }
 
-            // 渲染項目
             if (currentTab === 'rent') {
                 const rentAmount = currentUser === 'S' ? 500 : 400;
                 generateUTC_Dates('2026-05-17', 7, 52).forEach(date => {
@@ -293,7 +325,6 @@
             updateTotal();
         }
 
-        // 創建卡片 (加入 Subtitle 支援)
         function createCard(key, dateStr, subtitleStr, displayPrice) {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             const crossed = currentUser === 'S' ? appData.crossed_S : appData.crossed_H;
@@ -374,14 +405,12 @@
             }
         }
 
-        // --- 新增項目 (加入名稱欄位判斷) ---
         function openAddModal() {
             document.getElementById('new-date-start').value = '';
             document.getElementById('new-date-end').value = '';
             document.getElementById('new-amount').value = '';
             document.getElementById('new-item-name').value = '';
             
-            // 只有「其他」需要名稱輸入
             document.getElementById('name-input-group').style.display = (currentTab === 'others') ? 'block' : 'none';
             document.getElementById('add-modal').style.display = 'flex';
         }
@@ -398,7 +427,7 @@
             let finalDateStr = end ? `${start} ~ ${end}` : start;
             
             let newItem = { id: Date.now(), date: finalDateStr, amount: amount };
-            if(currentTab === 'others') newItem.name = name; // 只在others存入名稱
+            if(currentTab === 'others') newItem.name = name; 
             
             appData[currentTab].push(newItem);
             saveData();
@@ -406,7 +435,6 @@
             renderTab();
         }
 
-        // --- 照片詳情 ---
         function openDetailModal(key, date, subtitle, price) {
             currentItemKey = key;
             document.getElementById('modal-date').innerHTML = date + (subtitle ? `<br><span style="font-size:0.95rem; color:var(--text-light);">${subtitle}</span>` : '');
@@ -442,11 +470,10 @@
             if(confirm('確定要刪除這張照片嗎？')) {
                 appData.photos[key].splice(index, 1);
                 saveData();
-                closeModal('detail-modal'); // 關閉重開以刷新
+                closeModal('detail-modal'); 
             }
         }
 
-        // --- 付款與相片上傳引擎 ---
         function triggerBatchUpload() {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             const hasChecked = Object.values(checks).some(v => v === true);
@@ -456,7 +483,6 @@
 
         function handleBatchPhotoUpload(input) {
             if (input.files && input.files[0]) {
-                // 啟動 Loading 畫面防止連點卡死
                 document.getElementById('loading-overlay').style.display = 'flex';
                 
                 const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
@@ -467,18 +493,16 @@
                         if (checks[key]) {
                             if(!appData.photos[key]) appData.photos[key] = [];
                             if(appData.photos[key].length < 4) appData.photos[key].push(base64);
-                            
                             crossed[key] = true;
-                            checks[key] = false; // 取消勾選
+                            checks[key] = false; 
                         }
                     }
                     saveData();
-                    // 關閉 Loading 並顯示成功
                     document.getElementById('loading-overlay').style.display = 'none';
                     document.getElementById('success-modal').style.display = 'flex';
                 });
             }
-            input.value = ''; // 徹底重置 File Input
+            input.value = ''; 
         }
 
         function handleSinglePhotoUpload(input) {
@@ -489,7 +513,7 @@
                     appData.photos[currentItemKey].push(base64);
                     saveData();
                     document.getElementById('loading-overlay').style.display = 'none';
-                    closeModal('detail-modal'); // 關閉讓用戶重開刷新
+                    closeModal('detail-modal'); 
                 });
             }
             input.value = '';
@@ -501,16 +525,25 @@
             renderTab();
         }
 
-        // --- 防卡死壓縮演算法 ---
         function compressImage(file, callback) {
             const reader = new FileReader();
-            reader.readAsDataURL(file);
+            
+            reader.onerror = () => {
+                alert('讀取檔案失敗！這可能是因為照片格式不支援。');
+                document.getElementById('loading-overlay').style.display = 'none';
+            };
+
             reader.onload = event => {
                 const img = new Image();
-                img.src = event.target.result;
+                
+                img.onerror = () => {
+                    alert('無法處理這張照片。如果你用的是 iPhone，請嘗試將照片「截圖」後，上傳那張截圖！');
+                    document.getElementById('loading-overlay').style.display = 'none';
+                };
+
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // 安全解析度
+                    const MAX_WIDTH = 600; 
                     let finalWidth = img.width;
                     let finalHeight = img.height;
                     
@@ -524,16 +557,25 @@
                     canvas.height = finalHeight;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    callback(canvas.toDataURL('image/jpeg', 0.6));
+                    
+                    callback(canvas.toDataURL('image/jpeg', 0.5));
                 }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function saveData() { 
+            try {
+                localStorage.setItem('rentDataV6', JSON.stringify(appData)); 
+            } catch(e) {
+                alert('手機的網頁儲存空間已滿！請先點進去刪除幾張舊的收據照片再試試看。');
+                document.getElementById('loading-overlay').style.display = 'none';
             }
         }
 
-        // --- 核心輔助工具 ---
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function saveData() { localStorage.setItem('rentDataV6', JSON.stringify(appData)); }
-
-        // 使用 UTC 絕對時間生成，徹底消滅時區造成的日期位移 Bug
         function generateUTC_Dates(startStr, gapDays, count) {
             let dates = [];
             let [y, m, d] = startStr.split('-');
