@@ -60,23 +60,15 @@
         .content { padding: 20px; }
         .card {
             background: white; border-radius: 16px; padding: 20px; margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(171, 196, 255, 0.2); display: flex; align-items: center; justify-content: flex-start;
+            box-shadow: 0 4px 12px rgba(171, 196, 255, 0.2); display: flex; align-items: center; justify-content: space-between;
         }
-        
-        .checkbox { 
-            width: 32px; height: 32px; border: 3px solid var(--periwinkle-2); border-radius: 8px; 
-            display: flex; align-items: center; justify-content: center; cursor: pointer; 
-            background: white; transition: 0.2s; margin-right: 20px; flex-shrink: 0;
-        }
-        .checkbox.checked { background-color: var(--baby-blue-ice); border-color: var(--baby-blue-ice); }
-        .checkbox.checked::after { content: '✔'; color: white; font-size: 1.2rem; font-weight: bold; }
-
-        .item-info { flex-grow: 1; cursor: pointer; transition: 0.3s; }
+        .item-info { flex-grow: 1; cursor: pointer; }
         .item-date { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
         .item-price { font-size: 1rem; color: var(--baby-blue-ice); font-weight: bold; }
         
-        /* 劃線效果 */
-        .crossed-out { text-decoration: line-through; opacity: 0.5; }
+        .checkbox { width: 34px; height: 34px; border: 3px solid var(--periwinkle-2); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; transition: 0.2s; }
+        .checkbox.checked { background-color: var(--baby-blue-ice); border-color: var(--baby-blue-ice); }
+        .checkbox.checked::after { content: '✔'; color: white; font-size: 1.2rem; font-weight: bold; }
 
         /* 浮動總金額 Bar */
         .total-bar {
@@ -104,17 +96,9 @@
 
         /* 多張照片預覽網格 */
         .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
-        .photo-box { position: relative; width: 100%; aspect-ratio: 1; background: var(--alice-blue); border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--periwinkle-3); cursor: pointer; }
+        .photo-box { width: 100%; aspect-ratio: 1; background: var(--alice-blue); border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--periwinkle-3); cursor: pointer; }
         .photo-box img { width: 100%; height: 100%; object-fit: cover; }
         .photo-add-icon { font-size: 2rem; color: var(--periwinkle-2); }
-        
-        /* 刪除照片按鈕 */
-        .delete-photo-btn {
-            position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6);
-            color: white; width: 24px; height: 24px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1rem; font-weight: bold; cursor: pointer;
-        }
     </style>
 </head>
 <body>
@@ -144,7 +128,7 @@
     <div class="total-bar" onclick="triggerBatchUpload()">
         <div>
             <div>目前已勾選總計</div>
-            <div class="hint">點擊此處上傳照片，並自動結帳畫線</div>
+            <div class="hint">點擊此處，為所有打勾項目批次上傳照片</div>
         </div>
         <div class="amount" id="total-amount">0 AUD</div>
     </div>
@@ -184,12 +168,10 @@
         let currentTab = 'rent';
         let currentItemKey = '';
 
-        // 資料庫初始化 V4 (加入 crossed 狀態)
-        let appData = JSON.parse(localStorage.getItem('rentDataV4')) || {
-            checks_S: {}, checks_H: {}, 
-            crossed_S: {}, crossed_H: {}, 
-            photos: {}, 
-            water: [], energy: [], others: []
+        // 資料庫初始化 V3
+        let appData = JSON.parse(localStorage.getItem('rentDataV3')) || {
+            checks_S: {}, checks_H: {}, photos: {}, 
+            water: [], energy: [], others: [] // [{id, date, amount}]
         };
 
         function login(user) {
@@ -232,9 +214,12 @@
                     container.appendChild(createCard(`net_${date}`, date, 36));
                 });
             } else if (['water', 'energy', 'others'].includes(currentTab)) {
+                // 排序日期 (新到舊)
                 let items = appData[currentTab].sort((a,b) => new Date(b.date) - new Date(a.date));
                 items.forEach(item => {
                     let displayAmount = item.amount;
+                    // 水電若為 Hailey 登入，或 Sandy 查看卡片，顯示邏輯如下：
+                    // Prompt要求：Sandy輸入全額，卡片顯示全額但加總算一半；Hailey水電顯示一半，加總算全額(一半的全額)
                     if (['water', 'energy'].includes(currentTab)) {
                         if (currentUser === 'H') displayAmount = item.amount / 2;
                     }
@@ -244,22 +229,18 @@
             updateTotal();
         }
 
-        // 創建卡片 (方格在前，加入劃線判斷)
-        function createCard(key, date, displayPrice) {
+        function createCard(key, date, displayPrice, originalPrice = displayPrice) {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
-            const crossed = currentUser === 'S' ? appData.crossed_S : appData.crossed_H;
-            
             const isChecked = checks[key] ? 'checked' : '';
-            const isCrossed = crossed[key] ? 'crossed-out' : '';
             
             const div = document.createElement('div');
             div.className = 'card';
             div.innerHTML = `
-                <div class="checkbox ${isChecked}" onclick="toggleCheck('${key}')"></div>
-                <div class="item-info ${isCrossed}" onclick="openDetailModal('${key}', '${date}', '${displayPrice}')">
+                <div class="item-info" onclick="openDetailModal('${key}', '${date}', '${displayPrice}')">
                     <div class="item-date">${date}</div>
                     <div class="item-price">${displayPrice} AUD</div>
                 </div>
+                <div class="checkbox ${isChecked}" onclick="toggleCheck('${key}')"></div>
             `;
             return div;
         }
@@ -283,7 +264,7 @@
                     if (type === 'net') total += 36;
                     if (type === 'water' || type === 'energy') {
                         const item = appData[type].find(i => i.id == id);
-                        if (item) total += (item.amount / 2); // 兩人加總皆為一半
+                        if (item) total += (item.amount / 2); // 兩人都只加總一半
                     }
                     if (type === 'others') {
                         const item = appData.others.find(i => i.id == id);
@@ -327,14 +308,11 @@
             
             let photos = appData.photos[key] || [];
             
-            // 渲染現有照片並加入刪除按鈕
-            photos.forEach((base64, index) => {
+            // 渲染現有照片
+            photos.forEach(base64 => {
                 const box = document.createElement('div');
                 box.className = 'photo-box';
-                box.innerHTML = `
-                    <img src="${base64}">
-                    <div class="delete-photo-btn" onclick="deletePhoto('${key}', ${index}, event)">×</div>
-                `;
+                box.innerHTML = `<img src="${base64}">`;
                 grid.appendChild(box);
             });
 
@@ -349,18 +327,8 @@
 
             document.getElementById('detail-modal').style.display = 'flex';
         }
-        
-        // 刪除照片邏輯
-        function deletePhoto(key, index, event) {
-            event.stopPropagation(); // 避免觸發底下的卡片點擊
-            if(confirm('確定要刪除這張照片嗎？')) {
-                appData.photos[key].splice(index, 1);
-                saveData();
-                openDetailModal(key, document.getElementById('modal-date').innerText, document.getElementById('modal-price').innerText.replace(' AUD',''));
-            }
-        }
 
-        // 單張上傳
+        // 單張上傳 (使用圖片壓縮避免容量爆掉)
         function handleSinglePhotoUpload(input) {
             if (input.files && input.files[0]) {
                 compressImage(input.files[0], (base64) => {
@@ -370,40 +338,32 @@
                     openDetailModal(currentItemKey, document.getElementById('modal-date').innerText, document.getElementById('modal-price').innerText.replace(' AUD',''));
                 });
             }
-            input.value = '';
+            input.value = ''; // 重置 input
         }
 
-        // 批次上傳 (總金額列點擊)：上傳後自動劃線並歸零
+        // 批次上傳 (總金額列點擊)
         function triggerBatchUpload() {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             const hasChecked = Object.values(checks).some(v => v === true);
-            if(!hasChecked) return alert('請先勾選要結清的項目！');
+            if(!hasChecked) return alert('請先勾選要上傳繳費證明的項目！');
             document.getElementById('batch-photo-input').click();
         }
 
         function handleBatchPhotoUpload(input) {
             if (input.files && input.files[0]) {
                 const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
-                const crossed = currentUser === 'S' ? appData.crossed_S : appData.crossed_H;
-                
                 compressImage(input.files[0], (base64) => {
                     for (let key in checks) {
                         if (checks[key]) {
-                            // 儲存照片
                             if(!appData.photos[key]) appData.photos[key] = [];
+                            // 如果沒滿4張才塞進去
                             if(appData.photos[key].length < 4) {
                                 appData.photos[key].push(base64);
                             }
-                            
-                            // 畫上刪除線並取消打勾 (總金額就會歸零)
-                            crossed[key] = true;
-                            checks[key] = false;
                         }
                     }
                     saveData();
-                    updateTotal();
-                    renderTab();
-                    alert('已成功上傳照片！選取的項目已標記為結清。');
+                    alert('已成功批次為所有打勾項目加入收據照片！');
                 });
             }
             input.value = '';
@@ -431,7 +391,7 @@
 
         // --- 輔助工具 ---
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function saveData() { localStorage.setItem('rentDataV4', JSON.stringify(appData)); }
+        function saveData() { localStorage.setItem('rentDataV3', JSON.stringify(appData)); }
 
         function generateDates(startStr, gapDays, count) {
             let dates = [];
