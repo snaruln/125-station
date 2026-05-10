@@ -16,6 +16,7 @@
             --baby-blue-ice: #abc4ffff;
             --text-main: #3a4b73;
             --text-light: #6b7c9f;
+            --success: #81c784;
         }
 
         body {
@@ -29,7 +30,7 @@
         /* 登入畫面 */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(237, 242, 251, 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            background: rgba(237, 242, 251, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         .login-title { font-size: 1.8rem; margin-bottom: 40px; font-weight: bold; color: var(--text-main); }
@@ -53,52 +54,84 @@
         /* 分頁按鈕 */
         .tabs { display: flex; overflow-x: auto; background: rgba(255, 255, 255, 0.6); padding: 10px; border-bottom: 2px solid var(--lavender); }
         .tabs::-webkit-scrollbar { display: none; }
-        .tab-btn { flex: 0 0 auto; padding: 12px 15px; border: none; background: none; font-size: 1.05rem; color: var(--text-light); cursor: pointer; }
+        .tab-btn { flex: 0 0 auto; padding: 12px 15px; border: none; background: none; font-size: 1.05rem; color: var(--text-light); cursor: pointer; transition: 0.3s; }
         .tab-btn.active { color: var(--text-main); font-weight: bold; border-bottom: 3px solid var(--baby-blue-ice); }
 
         /* 內容區塊與卡片 */
         .content { padding: 20px; }
         .card {
             background: white; border-radius: 16px; padding: 20px; margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(171, 196, 255, 0.2); display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(171, 196, 255, 0.2); display: flex; align-items: center; justify-content: flex-start;
+            transition: opacity 0.3s;
         }
-        .item-info { flex-grow: 1; cursor: pointer; }
-        .item-date { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
-        .item-price { font-size: 1rem; color: var(--baby-blue-ice); font-weight: bold; }
         
-        .checkbox { width: 34px; height: 34px; border: 3px solid var(--periwinkle-2); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; transition: 0.2s; }
+        /* 勾選方格與狀態 */
+        .checkbox-container { width: 40px; flex-shrink: 0; display: flex; justify-content: center; margin-right: 15px; }
+        .checkbox { 
+            width: 32px; height: 32px; border: 3px solid var(--periwinkle-2); border-radius: 8px; 
+            display: flex; align-items: center; justify-content: center; cursor: pointer; 
+            background: white; transition: 0.2s;
+        }
         .checkbox.checked { background-color: var(--baby-blue-ice); border-color: var(--baby-blue-ice); }
         .checkbox.checked::after { content: '✔'; color: white; font-size: 1.2rem; font-weight: bold; }
+        
+        .paid-badge { font-size: 0.8rem; background: #e0e0e0; color: #757575; padding: 5px 8px; border-radius: 8px; font-weight: bold; text-align: center; }
 
-        /* 浮動總金額 Bar */
+        .item-info { flex-grow: 1; cursor: pointer; transition: 0.3s; width: calc(100% - 55px); }
+        .item-date { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; line-height: 1.3; }
+        .item-price { font-size: 1rem; color: var(--baby-blue-ice); font-weight: bold; }
+        
+        /* 劃線效果 */
+        .crossed-out .item-date, .crossed-out .item-price { text-decoration: line-through; color: #b0bec5; }
+
+        /* 浮動總金額 Bar (智慧狀態) */
         .total-bar {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             width: 90%; max-width: 450px; background: var(--text-main); color: white;
-            padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             display: flex; justify-content: space-between; align-items: center; z-index: 150;
-            cursor: pointer;
+            transition: 0.3s;
         }
-        .total-bar .amount { font-size: 1.5rem; font-weight: bold; color: var(--baby-blue-ice); }
-        .total-bar .hint { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+        .total-bar.disabled { background: var(--text-light); opacity: 0.6; cursor: not-allowed; }
+        .total-bar.active { cursor: pointer; background: var(--baby-blue-ice); }
+        .total-bar .amount { font-size: 1.6rem; font-weight: bold; }
+        .total-bar .hint { font-size: 0.9rem; opacity: 0.9; margin-top: 4px; }
 
         /* 新增項目按鈕 */
         .add-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.5); border: 2px dashed var(--periwinkle-3); border-radius: 15px; color: var(--text-main); font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: none; }
 
-        /* 彈出視窗 (Modal) */
+        /* 彈出視窗 (Modal) 共用 */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
         .modal-content { background: white; width: 90%; max-width: 400px; padding: 25px; border-radius: 20px; position: relative; max-height: 80vh; overflow-y: auto; }
         .close-modal { position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer; color: var(--text-light); }
         
+        /* 區間日期輸入 */
         .input-group { margin-bottom: 15px; }
-        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-main); }
-        .input-group input { width: 100%; padding: 12px; border: 2px solid var(--lavender); border-radius: 10px; box-sizing: border-box; font-size: 1.1rem; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-main); font-size: 0.9rem; }
+        .input-group input { width: 100%; padding: 12px; border: 2px solid var(--lavender); border-radius: 10px; box-sizing: border-box; font-size: 1rem; }
+        .dual-date { display: flex; gap: 10px; }
+        .dual-date > div { flex: 1; }
+        
         .save-btn { width: 100%; padding: 15px; background: var(--baby-blue-ice); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
         /* 多張照片預覽網格 */
         .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
-        .photo-box { width: 100%; aspect-ratio: 1; background: var(--alice-blue); border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--periwinkle-3); cursor: pointer; }
+        .photo-box { position: relative; width: 100%; aspect-ratio: 1; background: var(--alice-blue); border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--periwinkle-3); cursor: pointer; }
         .photo-box img { width: 100%; height: 100%; object-fit: cover; }
         .photo-add-icon { font-size: 2rem; color: var(--periwinkle-2); }
+        
+        /* 刪除照片按鈕 */
+        .delete-photo-btn {
+            position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6);
+            color: white; width: 26px; height: 26px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; font-weight: bold; cursor: pointer;
+        }
+
+        /* 成功視窗專屬樣式 */
+        #success-modal .modal-content { text-align: center; padding: 40px 20px; }
+        .success-icon { font-size: 4rem; color: var(--success); margin-bottom: 10px; }
+        .success-title { font-size: 1.5rem; color: var(--text-main); margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -120,26 +153,32 @@
         </div>
 
         <div class="content">
-            <button id="add-item-btn" class="add-btn" onclick="openAddModal()">＋ 新增項目</button>
+            <button id="add-item-btn" class="add-btn" onclick="openAddModal()">＋ 新增項目 (設定區間)</button>
             <div id="tab-content"></div>
         </div>
     </div>
 
-    <div class="total-bar" onclick="triggerBatchUpload()">
+    <div class="total-bar disabled" id="checkout-bar" onclick="triggerBatchUpload()">
         <div>
-            <div>目前已勾選總計</div>
-            <div class="hint">點擊此處，為所有打勾項目批次上傳照片</div>
+            <div id="bar-title">尚未選擇付款項目</div>
+            <div class="hint" id="bar-hint">請勾選左側方格</div>
         </div>
-        <div class="amount" id="total-amount">0 AUD</div>
+        <div class="amount" id="total-amount">0</div>
     </div>
 
     <div class="modal" id="add-modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('add-modal')">&times;</span>
             <h3 style="margin-top:0;">新增紀錄</h3>
-            <div class="input-group">
-                <label>日期</label>
-                <input type="date" id="new-date">
+            <div class="input-group dual-date">
+                <div>
+                    <label>開始日期</label>
+                    <input type="date" id="new-date-start">
+                </div>
+                <div>
+                    <label>結束日期 (選填)</label>
+                    <input type="date" id="new-date-end">
+                </div>
             </div>
             <div class="input-group">
                 <label>總金額 (AUD)</label>
@@ -152,26 +191,37 @@
     <div class="modal" id="detail-modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('detail-modal')">&times;</span>
-            <h3 id="modal-date" style="margin-top:0; font-size: 1.3rem;">日期</h3>
+            <h3 id="modal-date" style="margin-top:0; font-size: 1.2rem;">日期</h3>
             <p id="modal-price" style="color: var(--baby-blue-ice); font-weight: bold; font-size: 1.1rem;">金額</p>
             
-            <div class="photo-grid" id="photo-grid">
-                </div>
+            <div class="photo-grid" id="photo-grid"></div>
             
             <input type="file" id="single-photo-input" accept="image/*" style="display: none;" onchange="handleSinglePhotoUpload(this)">
-            <input type="file" id="batch-photo-input" accept="image/*" style="display: none;" onchange="handleBatchPhotoUpload(this)">
         </div>
     </div>
+
+    <div class="modal" id="success-modal">
+        <div class="modal-content">
+            <div class="success-icon">✔</div>
+            <div class="success-title">付款完成！</div>
+            <p style="color: var(--text-light); margin-bottom: 25px;">照片已上傳，項目已標記為結清且無法重複選取。</p>
+            <button class="save-btn" style="background: var(--success);" onclick="finishCheckout()">好的，回首頁</button>
+        </div>
+    </div>
+
+    <input type="file" id="batch-photo-input" accept="image/*" style="display: none;" onchange="handleBatchPhotoUpload(this)">
 
     <script>
         let currentUser = '';
         let currentTab = 'rent';
         let currentItemKey = '';
 
-        // 資料庫初始化 V3
-        let appData = JSON.parse(localStorage.getItem('rentDataV3')) || {
-            checks_S: {}, checks_H: {}, photos: {}, 
-            water: [], energy: [], others: [] // [{id, date, amount}]
+        // 資料庫 V5 (正式引入區間與防呆鎖定)
+        let appData = JSON.parse(localStorage.getItem('rentDataV5')) || {
+            checks_S: {}, checks_H: {}, 
+            crossed_S: {}, crossed_H: {}, 
+            photos: {}, 
+            water: [], energy: [], others: []
         };
 
         function login(user) {
@@ -194,7 +244,6 @@
             const addBtn = document.getElementById('add-item-btn');
             container.innerHTML = '';
             
-            // 判斷是否顯示新增按鈕
             if (['water', 'energy'].includes(currentTab) && currentUser === 'S') {
                 addBtn.style.display = 'block';
             } else if (currentTab === 'others') {
@@ -203,7 +252,6 @@
                 addBtn.style.display = 'none';
             }
 
-            // 渲染列表
             if (currentTab === 'rent') {
                 const rentAmount = currentUser === 'S' ? 500 : 400;
                 generateDates('2026-05-17', 7, 52).forEach(date => {
@@ -214,57 +262,81 @@
                     container.appendChild(createCard(`net_${date}`, date, 36));
                 });
             } else if (['water', 'energy', 'others'].includes(currentTab)) {
-                // 排序日期 (新到舊)
-                let items = appData[currentTab].sort((a,b) => new Date(b.date) - new Date(a.date));
+                let items = appData[currentTab].sort((a,b) => {
+                    // 取開始日期來排序
+                    let dateA = a.date.split(' ~ ')[0];
+                    let dateB = b.date.split(' ~ ')[0];
+                    return new Date(dateB) - new Date(dateA);
+                });
                 items.forEach(item => {
                     let displayAmount = item.amount;
-                    // 水電若為 Hailey 登入，或 Sandy 查看卡片，顯示邏輯如下：
-                    // Prompt要求：Sandy輸入全額，卡片顯示全額但加總算一半；Hailey水電顯示一半，加總算全額(一半的全額)
-                    if (['water', 'energy'].includes(currentTab)) {
-                        if (currentUser === 'H') displayAmount = item.amount / 2;
+                    if (['water', 'energy'].includes(currentTab) && currentUser === 'H') {
+                        displayAmount = item.amount / 2;
                     }
-                    container.appendChild(createCard(`${currentTab}_${item.id}`, item.date, displayAmount, item.amount));
+                    container.appendChild(createCard(`${currentTab}_${item.id}`, item.date, displayAmount));
                 });
             }
             updateTotal();
         }
 
-        function createCard(key, date, displayPrice, originalPrice = displayPrice) {
+        // 創建卡片 (防呆邏輯：已結清則不顯示打勾方塊)
+        function createCard(key, date, displayPrice) {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
+            const crossed = currentUser === 'S' ? appData.crossed_S : appData.crossed_H;
+            
             const isChecked = checks[key] ? 'checked' : '';
+            const isCrossed = crossed[key]; // Boolean
             
             const div = document.createElement('div');
             div.className = 'card';
+            
+            let checkboxHTML = '';
+            let textClass = '';
+
+            if (isCrossed) {
+                // 已結清：鎖定方格，顯示 Badge，文字劃線
+                checkboxHTML = `<div class="checkbox-container"><div class="paid-badge">✔ 已付</div></div>`;
+                textClass = 'crossed-out';
+            } else {
+                // 未結清：顯示可打勾方格
+                checkboxHTML = `
+                <div class="checkbox-container">
+                    <div class="checkbox ${isChecked}" onclick="event.stopPropagation(); toggleCheck('${key}')"></div>
+                </div>`;
+            }
+
             div.innerHTML = `
-                <div class="item-info" onclick="openDetailModal('${key}', '${date}', '${displayPrice}')">
+                ${checkboxHTML}
+                <div class="item-info ${textClass}" onclick="openDetailModal('${key}', '${date}', '${displayPrice}')">
                     <div class="item-date">${date}</div>
                     <div class="item-price">${displayPrice} AUD</div>
                 </div>
-                <div class="checkbox ${isChecked}" onclick="toggleCheck('${key}')"></div>
             `;
             return div;
         }
 
-        // --- 核心邏輯 ---
         function toggleCheck(key) {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             checks[key] = !checks[key];
             saveData();
-            renderTab();
+            updateTotal();
+            renderTab(); // 重新渲染以更新打勾 UI
         }
 
         function updateTotal() {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             let total = 0;
+            let hasChecked = false;
 
             for (let key in checks) {
                 if (checks[key]) {
+                    hasChecked = true;
                     const [type, id] = key.split('_');
                     if (type === 'rent') total += (currentUser === 'S' ? 500 : 400);
                     if (type === 'net') total += 36;
                     if (type === 'water' || type === 'energy') {
                         const item = appData[type].find(i => i.id == id);
-                        if (item) total += (item.amount / 2); // 兩人都只加總一半
+                        if (item) total += (item.amount / 2);
                     }
                     if (type === 'others') {
                         const item = appData.others.find(i => i.id == id);
@@ -272,24 +344,42 @@
                     }
                 }
             }
+            
+            const bar = document.getElementById('checkout-bar');
             document.getElementById('total-amount').innerText = total + ' AUD';
+            
+            // 智慧狀態列 UI
+            if (hasChecked) {
+                bar.className = 'total-bar active';
+                document.getElementById('bar-title').innerText = '點擊確認付款';
+                document.getElementById('bar-hint').innerText = '將為選取的項目上傳憑證';
+            } else {
+                bar.className = 'total-bar disabled';
+                document.getElementById('bar-title').innerText = '尚未選擇項目';
+                document.getElementById('bar-hint').innerText = '請勾選左側方格';
+            }
         }
 
-        // --- 動態新增項目 ---
+        // --- 區間日期新增 ---
         function openAddModal() {
-            document.getElementById('new-date').value = '';
+            document.getElementById('new-date-start').value = '';
+            document.getElementById('new-date-end').value = '';
             document.getElementById('new-amount').value = '';
             document.getElementById('add-modal').style.display = 'flex';
         }
 
         function saveNewItem() {
-            const date = document.getElementById('new-date').value;
+            const start = document.getElementById('new-date-start').value;
+            const end = document.getElementById('new-date-end').value;
             const amount = document.getElementById('new-amount').value;
-            if(!date || !amount) return alert('請填寫完整資訊');
+            
+            if(!start || !amount) return alert('請至少填寫開始日期與金額');
+            
+            let finalDateStr = end ? `${start} ~ ${end}` : start;
             
             appData[currentTab].push({
                 id: Date.now(),
-                date: date,
+                date: finalDateStr,
                 amount: amount
             });
             saveData();
@@ -297,7 +387,7 @@
             renderTab();
         }
 
-        // --- 相片處理 ---
+        // --- 照片與詳情 ---
         function openDetailModal(key, date, price) {
             currentItemKey = key;
             document.getElementById('modal-date').innerText = date;
@@ -308,15 +398,16 @@
             
             let photos = appData.photos[key] || [];
             
-            // 渲染現有照片
-            photos.forEach(base64 => {
+            photos.forEach((base64, index) => {
                 const box = document.createElement('div');
                 box.className = 'photo-box';
-                box.innerHTML = `<img src="${base64}">`;
+                box.innerHTML = `
+                    <img src="${base64}">
+                    <div class="delete-photo-btn" onclick="deletePhoto('${key}', ${index}, event)">×</div>
+                `;
                 grid.appendChild(box);
             });
 
-            // 渲染新增按鈕 (最多4張)
             if (photos.length < 4) {
                 const addBox = document.createElement('div');
                 addBox.className = 'photo-box';
@@ -324,11 +415,18 @@
                 addBox.onclick = () => document.getElementById('single-photo-input').click();
                 grid.appendChild(addBox);
             }
-
             document.getElementById('detail-modal').style.display = 'flex';
         }
+        
+        function deletePhoto(key, index, event) {
+            event.stopPropagation();
+            if(confirm('確定要刪除這張照片嗎？')) {
+                appData.photos[key].splice(index, 1);
+                saveData();
+                openDetailModal(key, document.getElementById('modal-date').innerText, document.getElementById('modal-price').innerText.replace(' AUD',''));
+            }
+        }
 
-        // 單張上傳 (使用圖片壓縮避免容量爆掉)
         function handleSinglePhotoUpload(input) {
             if (input.files && input.files[0]) {
                 compressImage(input.files[0], (base64) => {
@@ -338,38 +436,49 @@
                     openDetailModal(currentItemKey, document.getElementById('modal-date').innerText, document.getElementById('modal-price').innerText.replace(' AUD',''));
                 });
             }
-            input.value = ''; // 重置 input
+            input.value = '';
         }
 
-        // 批次上傳 (總金額列點擊)
+        // --- 批次付款與結帳流程 ---
         function triggerBatchUpload() {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             const hasChecked = Object.values(checks).some(v => v === true);
-            if(!hasChecked) return alert('請先勾選要上傳繳費證明的項目！');
+            if(!hasChecked) return; // 鎖定狀態不可按
             document.getElementById('batch-photo-input').click();
         }
 
         function handleBatchPhotoUpload(input) {
             if (input.files && input.files[0]) {
                 const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
+                const crossed = currentUser === 'S' ? appData.crossed_S : appData.crossed_H;
+                
                 compressImage(input.files[0], (base64) => {
                     for (let key in checks) {
                         if (checks[key]) {
+                            // 儲存照片
                             if(!appData.photos[key]) appData.photos[key] = [];
-                            // 如果沒滿4張才塞進去
-                            if(appData.photos[key].length < 4) {
-                                appData.photos[key].push(base64);
-                            }
+                            if(appData.photos[key].length < 4) appData.photos[key].push(base64);
+                            
+                            // 標記結清並取消打勾
+                            crossed[key] = true;
+                            checks[key] = false;
                         }
                     }
                     saveData();
-                    alert('已成功批次為所有打勾項目加入收據照片！');
+                    // 顯示成功 Modal
+                    document.getElementById('success-modal').style.display = 'flex';
                 });
             }
             input.value = '';
         }
 
-        // 圖片壓縮引擎
+        // 成功畫面點擊確認 -> 重新整理頁面狀態
+        function finishCheckout() {
+            closeModal('success-modal');
+            updateTotal();
+            renderTab();
+        }
+
         function compressImage(file, callback) {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -378,20 +487,19 @@
                 img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // 限制解析度
+                    const MAX_WIDTH = 800;
                     const scaleSize = MAX_WIDTH / img.width;
                     canvas.width = MAX_WIDTH;
                     canvas.height = img.height * scaleSize;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    callback(canvas.toDataURL('image/jpeg', 0.6)); // 壓縮比60%
+                    callback(canvas.toDataURL('image/jpeg', 0.6));
                 }
             }
         }
 
-        // --- 輔助工具 ---
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function saveData() { localStorage.setItem('rentDataV3', JSON.stringify(appData)); }
+        function saveData() { localStorage.setItem('rentDataV5', JSON.stringify(appData)); }
 
         function generateDates(startStr, gapDays, count) {
             let dates = [];
