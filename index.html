@@ -93,12 +93,15 @@
         .total-bar .amount { font-size: 1.6rem; font-weight: bold; }
         .total-bar .hint { font-size: 0.9rem; opacity: 0.9; margin-top: 4px; }
 
-        /* 操作按鈕 */
+        /* 操作按鈕群 */
         .add-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.5); border: 2px dashed var(--periwinkle-3); border-radius: 15px; color: var(--text-main); font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: none; }
         
-        /* 匯出備份按鈕 */
         .reset-data-btn { display: block; width: 100%; text-align: center; color: var(--warning); font-size: 0.95rem; margin-top: 40px; padding: 15px; background: rgba(255, 183, 77, 0.1); border: 1px solid var(--warning); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         .reset-data-btn:active { background: rgba(255, 183, 77, 0.3); }
+
+        /* 新增：終極測試刪除按鈕樣式 */
+        .hard-reset-btn { display: block; width: 100%; text-align: center; color: var(--danger); font-size: 0.9rem; margin-top: 15px; padding: 15px; background: rgba(229, 115, 115, 0.1); border: 1px solid var(--danger); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .hard-reset-btn:active { background: rgba(229, 115, 115, 0.3); }
 
         /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
@@ -155,6 +158,8 @@
             <div id="tab-content"></div>
             
             <button class="reset-data-btn" onclick="exportHtmlReportAndClearPhotos()">📦 匯出圖文對帳報告並釋放照片空間</button>
+            
+            <button class="hard-reset-btn" onclick="hardResetSystem()">🚨 刪除所有測試資料 (重新開始)</button>
         </div>
     </div>
 
@@ -229,7 +234,17 @@
             }
         };
 
-        // --- ⚙️ 核心升級：標準 HTML 圖文報告導出引擎 (不當機、秒開) ---
+        // --- 🚨 測試專用：一鍵殺掉所有資料重來 ---
+        function hardResetSystem() {
+            if(confirm('⚠️ 警告：確定要清空手機裡「所有的」帳務與照片紀錄，全部重新開始嗎？')) {
+                localStorage.removeItem('rentDataV9');
+                localStorage.removeItem('activeUserV9');
+                alert('已成功清空所有測試資料！畫面將為您重新整理。');
+                location.reload();
+            }
+        }
+
+        // --- ⚙️ 核心升級：標準 HTML 圖文報告導出引擎 ---
         function exportHtmlReportAndClearPhotos() {
             if(!confirm('⚠️ 準備下載對帳報告\n\n系統將自動下載一份包含「所有帳務明細表格與照片」的獨立 HTML 網頁文件，可在任何手機或電腦上直接點開瀏覽。\n\n下載後將自動清空網頁照片以釋放空間，文字紀錄則會繼續保留。確定下載嗎？')) {
                 return;
@@ -239,7 +254,6 @@
             document.getElementById('loading-overlay').style.display = 'flex';
 
             setTimeout(() => {
-                // 產生獨立的高級圖文對帳頁面
                 let reportHtml = `
                 <!DOCTYPE html>
                 <html>
@@ -319,7 +333,7 @@
                 const parseCustomItems = (typeStr, arr) => {
                     appData[typeStr].forEach(item => {
                         const key = `${typeStr}_${item.id}`;
-                        arr.push({ key: key, date: item.date, name: item.name || '無備註', amount: item.amount + ' (全額)', statusS: appData.crossed_S[key] ? "球員已結" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
+                        arr.push({ key: key, date: item.date, name: item.name || '無備註', amount: item.amount + ' (全額)', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
                     });
                 };
 
@@ -334,7 +348,6 @@
                 reportHtml += renderTable('其他雜項開支公攤', otherItems);
                 reportHtml += `</div></body></html>`;
 
-                // 使用瀏覽器安全的 Blob 機制直接下載標準 .html 檔案
                 const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
@@ -346,7 +359,6 @@
                 link.click();
                 document.body.removeChild(link);
 
-                // 清空照片，完美釋放記憶體
                 appData.photos = {}; 
                 saveData(); 
 
