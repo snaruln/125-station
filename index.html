@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>how r u 分帳紀錄</title>
+
+    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js"></script>
+
     <style>
         /* --- 全新色系設定 --- */
         :root {
@@ -74,8 +78,6 @@
         .checkbox.checked { background-color: var(--baby-blue-ice); border-color: var(--baby-blue-ice); }
         .checkbox.checked::after { content: '✔'; color: white; font-size: 1.2rem; font-weight: bold; }
         .paid-badge { font-size: 0.8rem; background: #e0e0e0; color: #757575; padding: 5px 8px; border-radius: 8px; font-weight: bold; text-align: center; }
-        
-        /* 免付款狀態 */
         .free-badge { font-size: 0.8rem; background: transparent; color: #b0bec5; border: 1px dashed #b0bec5; padding: 4px 6px; border-radius: 8px; font-weight: bold; text-align: center; }
 
         .item-info { flex-grow: 1; cursor: pointer; transition: 0.3s; width: calc(100% - 55px); }
@@ -97,7 +99,7 @@
         .total-bar .amount { font-size: 1.6rem; font-weight: bold; }
         .total-bar .hint { font-size: 0.9rem; opacity: 0.9; margin-top: 4px; }
 
-        /* 操作按鈕 */
+        /* 操作按鈕群 */
         .add-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.5); border: 2px dashed var(--periwinkle-3); border-radius: 15px; color: var(--text-main); font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: none; }
         .export-btn { display: block; width: 100%; text-align: center; color: var(--warning); font-size: 0.95rem; margin-top: 40px; padding: 15px; background: rgba(255, 183, 77, 0.1); border: 1px solid var(--warning); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         .export-btn:active { background: rgba(255, 183, 77, 0.3); }
@@ -125,10 +127,16 @@
         #success-modal .modal-content { text-align: center; padding: 40px 20px; }
         .success-icon { font-size: 4rem; color: var(--success); margin-bottom: 10px; }
         .success-title { font-size: 1.5rem; color: var(--text-main); margin-bottom: 10px; }
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 300; justify-content: center; align-items: center; flex-direction: column; font-size: 1.2rem; font-weight: bold; color: var(--baby-blue-ice); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); text-align: center; padding: 20px;}
+        
+        #loading-overlay, #init-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 300; display: flex; justify-content: center; align-items: center; flex-direction: column; font-size: 1.2rem; font-weight: bold; color: var(--baby-blue-ice); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); text-align: center; padding: 20px;}
     </style>
 </head>
 <body>
+
+    <div id="init-loading">
+        <div style="font-size: 2.5rem; margin-bottom: 10px;">☁️</div>
+        正在連線至雲端資料庫...
+    </div>
 
     <div id="login-overlay" style="display:none;">
         <div class="login-title">請選擇登入身份</div>
@@ -156,7 +164,7 @@
             <div id="tab-content"></div>
             
             <button class="export-btn" onclick="exportHtmlReportAndClearPhotos()">📦 匯出圖文對帳報告並釋放照片空間</button>
-            <button class="hard-reset-btn" onclick="hardResetSystem()">🚨 刪除所有測試資料 (重新開始)</button>
+            <button class="hard-reset-btn" onclick="hardResetSystem()">🚨 清空雲端所有測試資料 (重新開始)</button>
         </div>
     </div>
 
@@ -172,12 +180,10 @@
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('add-modal')">&times;</span>
             <h3 style="margin-top:0;">新增紀錄</h3>
-            
             <div class="input-group" id="name-input-group" style="display: none;">
                 <label>項目名稱</label>
                 <input type="text" id="new-item-name" placeholder="例如：買衛生紙、換燈泡">
             </div>
-            
             <div class="input-group" id="split-input-group" style="display: none;">
                 <label>分帳方式</label>
                 <select id="new-item-split">
@@ -186,7 +192,6 @@
                     <option value="hailey">僅 Hailey 需付款</option>
                 </select>
             </div>
-
             <div class="input-group dual-date">
                 <div><label>開始日期</label><input type="date" id="new-date-start"></div>
                 <div><label>結束日期 (選填)</label><input type="date" id="new-date-end"></div>
@@ -218,200 +223,95 @@
         </div>
     </div>
 
-    <div id="loading-overlay">照片壓縮存檔中，請稍候...</div>
+    <div id="loading-overlay" style="display: none;">照片壓縮上傳中，請稍候...</div>
     <input type="file" id="batch-photo-input" accept="image/jpeg, image/png, image/jpg, image/webp" style="display: none;" onchange="handleBatchPhotoUpload(this)">
 
     <script>
+        // ==========================================
+        // 🚀 Firebase 雲端資料庫初始化區塊 (已更新為澳洲主機)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAGHcDa70v45_f01F2-6-Hm1d-ho4AbEiA",
+            authDomain: "sandy-rent-app.firebaseapp.com",
+            databaseURL: "https://sandy-rent-app-default-rtdb.australia-southeast1.firebasedatabase.app", 
+            projectId: "sandy-rent-app",
+            storageBucket: "sandy-rent-app.firebasestorage.app",
+            messagingSenderId: "971506742376",
+            appId: "1:971506742376:web:bb58613510732d6c6f77dd"
+        };
+
+        // 啟動 Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const dbRef = db.ref('rentData');
+
         let currentUser = '';
         let currentTab = 'rent';
         let currentItemKey = '';
-        
-        // V10 資料庫：支援分帳邏輯
-        let appData = JSON.parse(localStorage.getItem('rentDataV10')) || {
-            checks_S: {}, checks_H: {}, 
-            crossed_S: {}, crossed_H: {}, 
-            photos: {}, 
-            water: [], energy: [], others: []
-        };
+        let appData = {}; 
 
-        window.onload = function() {
-            const savedUser = localStorage.getItem('activeUserV10');
-            if (savedUser) {
-                login(savedUser); 
+        // 📡 監聽雲端資料變化 (自動同步的核心魔法)
+        dbRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                appData = data;
+                // 防止雲端資料庫因為全空而把陣列變成 undefined
+                appData.water = appData.water || [];
+                appData.energy = appData.energy || [];
+                appData.others = appData.others || [];
+                appData.photos = appData.photos || {};
+                appData.checks_S = appData.checks_S || {};
+                appData.checks_H = appData.checks_H || {};
+                appData.crossed_S = appData.crossed_S || {};
+                appData.crossed_H = appData.crossed_H || {};
+            } else {
+                appData = { checks_S: {}, checks_H: {}, crossed_S: {}, crossed_H: {}, photos: {}, water: [], energy: [], others: [] };
+            }
+
+            // 資料載入完成，隱藏載入畫面
+            document.getElementById('init-loading').style.display = 'none';
+
+            // 檢查是否已登入，如果是，直接渲染 (達成雙方手機即時更新)
+            const savedUser = localStorage.getItem('activeUserCloud');
+            if (savedUser && !currentUser) {
+                login(savedUser);
+            } else if (currentUser) {
+                renderTab(); 
+                updateTotal();
             } else {
                 document.getElementById('login-overlay').style.display = 'flex';
             }
-        };
+        }, (error) => {
+            alert("雲端連線發生錯誤，請重新整理！錯誤碼：" + error.message);
+            document.getElementById('init-loading').innerText = "連線失敗 😢";
+        });
 
-        function hardResetSystem() {
-            if(confirm('⚠️ 警告：確定要清空手機裡「所有的」帳務與照片紀錄，全部重新開始嗎？')) {
-                localStorage.removeItem('rentDataV10');
-                localStorage.removeItem('activeUserV10');
-                alert('已成功清空所有測試資料！畫面將為您重新整理。');
-                location.reload();
-            }
-        }
-
-        function exportHtmlReportAndClearPhotos() {
-            if(!confirm('⚠️ 準備下載對帳報告\n\n系統將自動下載一份包含「所有帳務明細表格與照片」的獨立 HTML 網頁文件，可在任何手機或電腦上直接點開瀏覽。\n\n下載後將自動清空網頁照片以釋放空間，文字紀錄則會繼續保留。確定下載嗎？')) {
-                return;
-            }
-
-            document.getElementById('loading-overlay').innerHTML = "正在封裝所有圖文資料...<br><span style='font-size:0.9rem; font-weight:normal; margin-top:10px;'>正在產生安全報告檔案</span>";
-            document.getElementById('loading-overlay').style.display = 'flex';
-
-            setTimeout(() => {
-                let reportHtml = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Sandy & Hailey 租屋帳務明細報告</title>
-                    <style>
-                        body { font-family: -apple-system, sans-serif; background: #fafafa; color: #333; padding: 30px 20px; margin: 0; }
-                        .report-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-                        h1 { color: #3a4b73; text-align: center; margin-bottom: 5px; font-size: 24px; }
-                        .meta-info { text-align: center; color: #666; font-size: 14px; margin-bottom: 40px; }
-                        h2 { color: #3a4b73; margin-top: 30px; border-left: 5px solid #abc4ff; padding-left: 12px; font-size: 18px; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
-                        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; vertical-align: middle; }
-                        th { background-color: #f5f7fa; font-weight: bold; color: #4c5a7d; }
-                        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
-                        .paid { background-color: #e8f5e9; color: #2e7d32; }
-                        .unpaid { background-color: #ffebee; color: #c62828; }
-                        .photo-grid { display: flex; flex-wrap: wrap; gap: 10px; }
-                        .receipt-img { max-width: 120px; max-height: 120px; border-radius: 6px; border: 1px solid #ddd; object-fit: cover; }
-                        @media (max-width: 600px) {
-                            body { padding: 10px; }
-                            .report-container { padding: 15px; border-radius: 8px; }
-                            table { font-size: 12px; }
-                            th, td { padding: 8px 4px; }
-                            .receipt-img { max-width: 70px; max-height: 70px; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="report-container">
-                        <h1>Sandy & Hailey 數位租屋帳務明細報告</h1>
-                        <div class="meta-info">產出日期：${new Date().toLocaleString()} | 文件類別：數位圖文對帳單</div>
-                `;
-
-                const renderTable = (title, items) => {
-                    if (items.length === 0) return '';
-                    let html = `<h2>📌 ${title}</h2><table><tr><th>日期/區間</th><th>項目備註</th><th>金額 (AUD)</th><th>Sandy 狀態</th><th>Hailey 狀態</th><th>收據照片 (共用)</th></tr>`;
-                    
-                    items.forEach(item => {
-                        let imgHtml = '<div class="photo-grid">';
-                        if (appData.photos[item.key] && appData.photos[item.key].length > 0) {
-                            appData.photos[item.key].forEach(base64 => {
-                                imgHtml += `<a href="${base64}" target="_blank"><img class="receipt-img" src="${base64}" title="點擊放大圖片" /></a>`;
-                            });
-                        } else {
-                            imgHtml += '<span style="color:#aaa;">無憑證</span>';
-                        }
-                        imgHtml += '</div>';
-                        
-                        html += `<tr>
-                            <td><strong>${item.date}</strong></td>
-                            <td>${item.name}</td>
-                            <td><span style="color:#3a4b73; font-weight:bold;">${item.amount}</span></td>
-                            <td><span class="badge ${item.statusS === '已結清' ? 'paid' : 'unpaid'}">${item.statusS}</span></td>
-                            <td><span class="badge ${item.statusH === '已結清' ? 'paid' : 'unpaid'}">${item.statusH}</span></td>
-                            <td>${imgHtml}</td>
-                        </tr>`;
-                    });
-                    html += `</table>`;
-                    return html;
-                };
-
-                let rentItems = [], netItems = [], waterItems = [], energyItems = [], otherItems = [];
-                
-                generateUTC_Dates('2026-05-17', 7, 52).forEach(date => {
-                    const key = `rent_${date}`;
-                    rentItems.push({ key: key, date: date, name: '每週固定房屋租金', amount: 'S 500 / H 400', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
-                });
-
-                generateUTC_Months('2026-05-15', 12).forEach(date => {
-                    const key = `net_${date}`;
-                    netItems.push({ key: key, date: date, name: '每月固定網路費', amount: '36', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
-                });
-
-                const parseCustomItems = (typeStr, arr) => {
-                    appData[typeStr].forEach(item => {
-                        const key = `${typeStr}_${item.id}`;
-                        
-                        // 處理分帳顯示文字
-                        let splitText = '';
-                        if(typeStr === 'others') {
-                            if(item.split === 'sandy') splitText = ' (僅Sandy負擔)';
-                            else if(item.split === 'hailey') splitText = ' (僅Hailey負擔)';
-                            else splitText = ' (共同平分)';
-                        }
-                        let finalName = (item.name || '無備註') + splitText;
-                        
-                        arr.push({ key: key, date: item.date, name: finalName, amount: item.amount + ' (總額)', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
-                    });
-                };
-
-                parseCustomItems('water', waterItems);
-                parseCustomItems('energy', energyItems);
-                parseCustomItems('others', otherItems);
-
-                reportHtml += renderTable('房屋租金支付時程表 (每週)', rentItems);
-                reportHtml += renderTable('網路費用支付紀錄 (每月)', netItems);
-                reportHtml += renderTable('水費公攤明細', waterItems);
-                reportHtml += renderTable('電費與煤氣明細', energyItems);
-                reportHtml += renderTable('其他雜項分帳', otherItems);
-                reportHtml += `</div></body></html>`;
-
-                const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                const today = new Date().toISOString().split('T')[0];
-                link.setAttribute("href", url);
-                link.setAttribute("download", `租屋對帳報告_含完整照片_${today}.html`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                appData.photos = {}; 
-                saveData(); 
-
-                document.getElementById('loading-overlay').style.display = 'none';
-                
-                document.getElementById('success-message').innerHTML = '<b>圖文報告檔案已成功導出下載！</b><br><br>這份文件保證可以在任何手機、平板或電腦上直接點開。';
-                document.getElementById('success-modal').style.display = 'flex';
-                
-            }, 500);
-        }
-
+        // 💾 寫入雲端的全新函式
         function saveData() { 
-            try {
-                localStorage.setItem('rentDataV10', JSON.stringify(appData)); 
-            } catch(e) {
-                alert('🚨 儲存失敗！照片量可能已達上限，請點擊下方的「匯出圖文報告」按鈕將照片打包下載並清空網頁空間。');
-            }
+            dbRef.set(appData).catch((error) => {
+                alert("儲存到雲端失敗，請檢查網路連線！");
+            });
         }
+
+        // ==========================================
+        // UI 與操作邏輯
+        // ==========================================
 
         function login(user) {
             currentUser = user;
-            localStorage.setItem('activeUserV10', user); 
+            localStorage.setItem('activeUserCloud', user); // 本地只記住「你是誰」
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('main-container').style.display = 'block';
             document.getElementById('current-user-tag').innerText = user === 'S' ? 'Sandy' : 'Hailey';
             renderTab();
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            window.logout = function() {
-                currentUser = '';
-                localStorage.removeItem('activeUserV10'); 
-                document.getElementById('main-container').style.display = 'none';
-                document.getElementById('login-overlay').style.display = 'flex';
-            };
-        });
+        function logout() {
+            currentUser = '';
+            localStorage.removeItem('activeUserCloud'); 
+            document.getElementById('main-container').style.display = 'none';
+            document.getElementById('login-overlay').style.display = 'flex';
+        }
 
         function switchTab(tab) {
             currentTab = tab;
@@ -421,6 +321,8 @@
         }
 
         function renderTab() {
+            if(!appData.checks_S) return; // 防呆：等待雲端資料中
+
             const container = document.getElementById('tab-content');
             const addBtn = document.getElementById('add-item-btn');
             container.innerHTML = '';
@@ -443,16 +345,14 @@
                     container.appendChild(createCard(`net_${date}`, date, '', 36, true));
                 });
             } else if (['water', 'energy'].includes(currentTab)) {
-                let items = appData[currentTab].sort((a,b) => new Date(b.date.split(' ~ ')[0]) - new Date(a.date.split(' ~ ')[0]));
-                
+                let items = [...appData[currentTab]].sort((a,b) => new Date(b.date.split(' ~ ')[0]) - new Date(a.date.split(' ~ ')[0]));
                 items.forEach(item => {
                     let displayAmount = currentUser === 'H' ? item.amount / 2 : item.amount;
                     let subtitle = currentUser === 'S' ? `帳單總額 (結帳將自動計算半價 ${item.amount/2})` : '需付一半金額';
                     container.appendChild(createCard(`${currentTab}_${item.id}`, item.date, subtitle, displayAmount, true));
                 });
             } else if (currentTab === 'others') {
-                let items = appData[currentTab].sort((a,b) => new Date(b.date.split(' ~ ')[0]) - new Date(a.date.split(' ~ ')[0]));
-                
+                let items = [...appData[currentTab]].sort((a,b) => new Date(b.date.split(' ~ ')[0]) - new Date(a.date.split(' ~ ')[0]));
                 items.forEach(item => {
                     let displayAmount = 0;
                     let subtitle = item.name || '';
@@ -470,14 +370,12 @@
                         subtitle += ' (僅 Hailey 負擔)';
                         if (currentUser === 'S') isPayable = false;
                     }
-
                     container.appendChild(createCard(`${currentTab}_${item.id}`, item.date, subtitle, displayAmount, isPayable));
                 });
             }
             updateTotal();
         }
 
-        // 新增 isPayable 判斷：如果是不用付錢的一方，隱藏打勾框
         function createCard(key, dateStr, subtitleStr, displayPrice, isPayable) {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             const crossed = currentUser === 'S' ? appData.crossed_S : appData.crossed_H;
@@ -495,7 +393,6 @@
                 checkboxHTML = `<div class="checkbox-container"><div class="paid-badge">✔ 已付</div></div>`;
                 textClass = 'crossed-out';
             } else if (!isPayable) {
-                // 不用付錢的人
                 checkboxHTML = `<div class="checkbox-container"><div class="free-badge">免付</div></div>`;
                 textClass = 'dimmed';
             } else {
@@ -521,9 +418,8 @@
         function toggleCheck(key) {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             checks[key] = !checks[key];
-            saveData();
-            updateTotal();
-            renderTab(); 
+            saveData(); 
+            // 畫面會由 dbRef.on('value') 自動觸發重繪，不用手動叫 renderTab()
         }
 
         function updateTotal() {
@@ -571,12 +467,9 @@
             document.getElementById('new-date-end').value = '';
             document.getElementById('new-amount').value = '';
             document.getElementById('new-item-name').value = '';
-            
-            // 開啟分帳選項
             document.getElementById('name-input-group').style.display = (currentTab === 'others') ? 'block' : 'none';
             document.getElementById('split-input-group').style.display = (currentTab === 'others') ? 'block' : 'none';
-            document.getElementById('new-item-split').value = 'half'; // 預設平分
-
+            document.getElementById('new-item-split').value = 'half';
             document.getElementById('add-modal').style.display = 'flex';
         }
 
@@ -591,17 +484,12 @@
             if(currentTab === 'others' && !name) return alert('請填寫項目名稱');
             
             let finalDateStr = end ? `${start} ~ ${end}` : start;
-            
             let newItem = { id: Date.now(), date: finalDateStr, amount: amount };
-            if(currentTab === 'others') {
-                newItem.name = name; 
-                newItem.split = split;
-            }
+            if(currentTab === 'others') { newItem.name = name; newItem.split = split; }
             
             appData[currentTab].push(newItem);
             saveData();
             closeModal('add-modal');
-            renderTab();
         }
 
         function openDetailModal(key, date, subtitle, price) {
@@ -611,16 +499,12 @@
             
             const grid = document.getElementById('photo-grid');
             grid.innerHTML = '';
-            
             let photos = appData.photos[key] || [];
             
             photos.forEach((base64, index) => {
                 const box = document.createElement('div');
                 box.className = 'photo-box';
-                box.innerHTML = `
-                    <img src="${base64}">
-                    <div class="delete-photo-btn" onclick="deletePhoto('${key}', ${index}, event)">×</div>
-                `;
+                box.innerHTML = `<img src="${base64}"><div class="delete-photo-btn" onclick="deletePhoto('${key}', ${index}, event)">×</div>`;
                 grid.appendChild(box);
             });
 
@@ -652,7 +536,7 @@
 
         function handleBatchPhotoUpload(input) {
             if (input.files && input.files[0]) {
-                document.getElementById('loading-overlay').innerHTML = "照片壓縮存檔中，請稍候...";
+                document.getElementById('loading-overlay').innerHTML = "雲端壓縮上傳中，請稍候...";
                 document.getElementById('loading-overlay').style.display = 'flex';
                 
                 const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
@@ -669,8 +553,7 @@
                     }
                     saveData();
                     document.getElementById('loading-overlay').style.display = 'none';
-                    
-                    document.getElementById('success-message').innerText = '項目已標記為結清，並自動解鎖畫面。';
+                    document.getElementById('success-message').innerText = '項目已成功寫入雲端並結清！另一方的手機畫面也已同步更新。';
                     document.getElementById('success-modal').style.display = 'flex';
                 });
             }
@@ -679,7 +562,7 @@
 
         function handleSinglePhotoUpload(input) {
             if (input.files && input.files[0]) {
-                document.getElementById('loading-overlay').innerHTML = "照片壓縮存檔中，請稍候...";
+                document.getElementById('loading-overlay').innerHTML = "雲端壓縮上傳中，請稍候...";
                 document.getElementById('loading-overlay').style.display = 'flex';
                 compressImage(input.files[0], (base64) => {
                     if(!appData.photos[currentItemKey]) appData.photos[currentItemKey] = [];
@@ -694,8 +577,6 @@
 
         function finishCheckout() {
             closeModal('success-modal');
-            updateTotal();
-            renderTab();
         }
 
         function compressImage(file, callback) {
@@ -723,26 +604,125 @@
         }
 
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        
-        function generateUTC_Dates(startStr, gapDays, count) {
-            let dates = [];
-            let [y, m, d] = startStr.split('-');
-            let curr = new Date(Date.UTC(y, m - 1, d)); 
-            for (let i = 0; i < count; i++) {
-                dates.push(curr.toISOString().split('T')[0]);
-                curr.setUTCDate(curr.getUTCDate() + gapDays);
+
+        // 清空雲端所有測試資料
+        function hardResetSystem() {
+            if(confirm('⚠️ 警告：確定要清空雲端裡「所有的」帳務與照片紀錄，全部重新開始嗎？\n這會影響到所有正在觀看此頁面的人！')) {
+                dbRef.set(null).then(() => {
+                    alert('已成功清空雲端所有資料！');
+                });
             }
+        }
+
+        // 匯出報表功能 (照舊支援)
+        function exportHtmlReportAndClearPhotos() {
+            if(!confirm('⚠️ 準備下載對帳報告\n\n系統將自動下載一份包含「所有表格與照片」的 HTML 網頁文件。\n下載後，雲端上的照片將被清空以節省空間，但文字紀錄會保留。確定下載嗎？')) return;
+
+            document.getElementById('loading-overlay').innerHTML = "正在封裝雲端圖文資料...<br><span style='font-size:0.9rem; font-weight:normal; margin-top:10px;'>請耐心等候幾秒鐘</span>";
+            document.getElementById('loading-overlay').style.display = 'flex';
+
+            setTimeout(() => {
+                let reportHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Sandy & Hailey 租屋帳務明細報告</title>
+                    <style>
+                        body { font-family: -apple-system, sans-serif; background: #fafafa; color: #333; padding: 30px 20px; margin: 0; }
+                        .report-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+                        h1 { color: #3a4b73; text-align: center; margin-bottom: 5px; font-size: 24px; }
+                        .meta-info { text-align: center; color: #666; font-size: 14px; margin-bottom: 40px; }
+                        h2 { color: #3a4b73; margin-top: 30px; border-left: 5px solid #abc4ff; padding-left: 12px; font-size: 18px; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+                        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; vertical-align: middle; }
+                        th { background-color: #f5f7fa; font-weight: bold; color: #4c5a7d; }
+                        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
+                        .paid { background-color: #e8f5e9; color: #2e7d32; }
+                        .unpaid { background-color: #ffebee; color: #c62828; }
+                        .photo-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+                        .receipt-img { max-width: 120px; max-height: 120px; border-radius: 6px; border: 1px solid #ddd; object-fit: cover; }
+                        @media (max-width: 600px) {
+                            body { padding: 10px; }
+                            .report-container { padding: 15px; border-radius: 8px; }
+                            table { font-size: 12px; }
+                            th, td { padding: 8px 4px; }
+                            .receipt-img { max-width: 70px; max-height: 70px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="report-container">
+                        <h1>Sandy & Hailey 數位租屋帳務明細報告</h1>
+                        <div class="meta-info">產出日期：${new Date().toLocaleString()} | 文件類別：雲端圖文對帳單</div>
+                `;
+
+                const renderTable = (title, items) => {
+                    if (items.length === 0) return '';
+                    let html = `<h2>📌 ${title}</h2><table><tr><th>日期/區間</th><th>項目備註</th><th>金額 (AUD)</th><th>Sandy 狀態</th><th>Hailey 狀態</th><th>收據照片</th></tr>`;
+                    items.forEach(item => {
+                        let imgHtml = '<div class="photo-grid">';
+                        if (appData.photos[item.key] && appData.photos[item.key].length > 0) {
+                            appData.photos[item.key].forEach(base64 => { imgHtml += `<a href="${base64}" target="_blank"><img class="receipt-img" src="${base64}" /></a>`; });
+                        } else { imgHtml += '<span style="color:#aaa;">無憑證</span>'; }
+                        imgHtml += '</div>';
+                        html += `<tr>
+                            <td><strong>${item.date}</strong></td><td>${item.name}</td>
+                            <td><span style="color:#3a4b73; font-weight:bold;">${item.amount}</span></td>
+                            <td><span class="badge ${item.statusS === '已結清' ? 'paid' : 'unpaid'}">${item.statusS}</span></td>
+                            <td><span class="badge ${item.statusH === '已結清' ? 'paid' : 'unpaid'}">${item.statusH}</span></td>
+                            <td>${imgHtml}</td>
+                        </tr>`;
+                    });
+                    html += `</table>`; return html;
+                };
+
+                let rentItems = [], netItems = [], waterItems = [], energyItems = [], otherItems = [];
+                generateUTC_Dates('2026-05-17', 7, 52).forEach(date => { const key = `rent_${date}`; rentItems.push({ key: key, date: date, name: '房屋租金', amount: 'S 500 / H 400', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" }); });
+                generateUTC_Months('2026-05-15', 12).forEach(date => { const key = `net_${date}`; netItems.push({ key: key, date: date, name: '網路費', amount: '36', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" }); });
+                
+                const parseCustomItems = (typeStr, arr) => {
+                    appData[typeStr].forEach(item => {
+                        const key = `${typeStr}_${item.id}`;
+                        let splitText = '';
+                        if(typeStr === 'others') {
+                            if(item.split === 'sandy') splitText = ' (僅Sandy負擔)';
+                            else if(item.split === 'hailey') splitText = ' (僅Hailey負擔)';
+                            else splitText = ' (共同平分)';
+                        }
+                        arr.push({ key: key, date: item.date, name: (item.name || '無備註') + splitText, amount: item.amount + ' (總額)', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
+                    });
+                };
+                parseCustomItems('water', waterItems); parseCustomItems('energy', energyItems); parseCustomItems('others', otherItems);
+
+                reportHtml += renderTable('房屋租金支付時程', rentItems) + renderTable('網路費用紀錄', netItems) + renderTable('水費明細', waterItems) + renderTable('電費煤氣明細', energyItems) + renderTable('其他雜項', otherItems) + `</div></body></html>`;
+
+                const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `租屋雲端對帳報告_${new Date().toISOString().split('T')[0]}.html`);
+                link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+
+                appData.photos = {}; 
+                saveData(); 
+
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('success-message').innerHTML = '<b>圖文報告檔案已導出！</b><br>雲端照片已為您清空釋放空間。';
+                document.getElementById('success-modal').style.display = 'flex';
+            }, 500);
+        }
+
+        function generateUTC_Dates(startStr, gapDays, count) {
+            let dates = []; let [y, m, d] = startStr.split('-'); let curr = new Date(Date.UTC(y, m - 1, d)); 
+            for (let i = 0; i < count; i++) { dates.push(curr.toISOString().split('T')[0]); curr.setUTCDate(curr.getUTCDate() + gapDays); }
             return dates;
         }
 
         function generateUTC_Months(startStr, count) {
-            let dates = [];
-            let [y, m, d] = startStr.split('-');
-            let curr = new Date(Date.UTC(y, m - 1, d)); 
-            for (let i = 0; i < count; i++) {
-                dates.push(curr.toISOString().split('T')[0]);
-                curr.setUTCMonth(curr.getUTCMonth() + 1);
-            }
+            let dates = []; let [y, m, d] = startStr.split('-'); let curr = new Date(Date.UTC(y, m - 1, d)); 
+            for (let i = 0; i < count; i++) { dates.push(curr.toISOString().split('T')[0]); curr.setUTCMonth(curr.getUTCMonth() + 1); }
             return dates;
         }
     </script>
