@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>how r u 房租紀錄</title>
+    <title>Sandy & Hailey 數位收租小卡</title>
     <style>
         /* --- 全新色系設定 --- */
         :root {
@@ -93,12 +93,14 @@
         .total-bar .amount { font-size: 1.6rem; font-weight: bold; }
         .total-bar .hint { font-size: 0.9rem; opacity: 0.9; margin-top: 4px; }
 
-        /* 新增按鈕與清除按鈕 */
+        /* 操作按鈕群 */
         .add-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.5); border: 2px dashed var(--periwinkle-3); border-radius: 15px; color: var(--text-main); font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: none; }
+        .export-btn { display: block; width: 100%; text-align: center; color: var(--warning); font-size: 0.95rem; margin-top: 40px; padding: 15px; background: rgba(255, 183, 77, 0.1); border: 1px solid var(--warning); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .export-btn:active { background: rgba(255, 183, 77, 0.3); }
         
-        /* 改版的匯出 Word 按鈕 */
-        .reset-data-btn { display: block; width: 100%; text-align: center; color: var(--warning); font-size: 0.95rem; margin-top: 40px; padding: 15px; background: rgba(255, 183, 77, 0.1); border: 1px solid var(--warning); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .reset-data-btn:active { background: rgba(255, 183, 77, 0.3); }
+        /* 終極測試刪除按鈕 */
+        .hard-reset-btn { display: block; width: 100%; text-align: center; color: var(--danger); font-size: 0.9rem; margin-top: 15px; padding: 15px; background: rgba(229, 115, 115, 0.1); border: 1px solid var(--danger); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .hard-reset-btn:active { background: rgba(229, 115, 115, 0.3); }
 
         /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
@@ -154,7 +156,8 @@
             <button id="add-item-btn" class="add-btn" onclick="openAddModal()">＋ 新增項目 (設定區間)</button>
             <div id="tab-content"></div>
             
-            <button class="reset-data-btn" onclick="exportWordAndClearPhotos()">📄 匯出圖文 Word 備份並釋放照片空間</button>
+            <button class="export-btn" onclick="exportWordAndClearPhotos()">📄 匯出圖文 Word 備份並釋放照片</button>
+            <button class="hard-reset-btn" onclick="hardResetSystem()">🚨 刪除所有測試資料 (重新開始)</button>
         </div>
     </div>
 
@@ -229,7 +232,17 @@
             }
         };
 
-        // --- ⚙️ 全新功能：圖文 Word 產生器與空間釋放 ---
+        // --- 🚨 測試專用：一鍵殺掉所有資料重來 ---
+        function hardResetSystem() {
+            if(confirm('⚠️ 警告：確定要清空手機裡「所有的」帳務與照片紀錄，全部重新開始嗎？')) {
+                localStorage.removeItem('rentDataV9');
+                localStorage.removeItem('activeUserV9');
+                alert('已成功清空所有測試資料！畫面將為您重新整理。');
+                location.reload();
+            }
+        }
+
+        // --- ⚙️ 圖文 Word 產生器與空間釋放 ---
         function exportWordAndClearPhotos() {
             if(!confirm('⚠️ 準備匯出 Word 備份並釋放空間\n\n系統將自動下載一份包含「所有文字明細與收據照片」的 Word 檔案。\n\n下載後，系統會【清除網頁中的照片】釋放容量，但您的文字帳務紀錄皆會完整保留。確定要執行嗎？')) {
                 return;
@@ -239,7 +252,6 @@
             document.getElementById('loading-overlay').style.display = 'flex';
 
             setTimeout(() => {
-                // Word 檔案的基礎 HTML 結構 (支援圖片嵌入)
                 let wordContent = `
                 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
                 <head>
@@ -263,7 +275,6 @@
                     <p>※ 本文件包含所有歷史帳目與已上傳之收據照片。</p>
                 `;
 
-                // 產生表格內容的工具函數
                 const renderTable = (title, items) => {
                     if (items.length === 0) return '';
                     let html = `<h2>${title}</h2><table><tr><th>日期/區間</th><th>項目名稱</th><th>金額 (AUD)</th><th>Sandy 狀態</th><th>Hailey 狀態</th><th>收據照片</th></tr>`;
@@ -291,7 +302,6 @@
                     return html;
                 };
 
-                // 收集資料
                 let rentItems = [], netItems = [], waterItems = [], energyItems = [], otherItems = [];
                 
                 generateUTC_Dates('2026-05-17', 7, 52).forEach(date => {
@@ -315,7 +325,6 @@
                 parseCustomItems('energy', energyItems);
                 parseCustomItems('others', otherItems);
 
-                // 拼裝 HTML
                 wordContent += renderTable('每週房租', rentItems);
                 wordContent += renderTable('網路費', netItems);
                 wordContent += renderTable('水費', waterItems);
@@ -323,7 +332,6 @@
                 wordContent += renderTable('其他雜項', otherItems);
                 wordContent += `</body></html>`;
 
-                // 觸發 Word 下載
                 const blob = new Blob(['\ufeff', wordContent], { type: 'application/msword' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
@@ -335,17 +343,15 @@
                 link.click();
                 document.body.removeChild(link);
 
-                // 僅清除照片，保留文字！
                 appData.photos = {}; 
                 saveData(); 
 
                 document.getElementById('loading-overlay').style.display = 'none';
                 
-                // 顯示成功視窗
                 document.getElementById('success-message').innerText = '圖文 Word 檔案已開始下載！\n\n網頁中的照片已清空以釋放空間，但您的所有文字帳務紀錄已為您保留。';
                 document.getElementById('success-modal').style.display = 'flex';
                 
-            }, 500); // 給瀏覽器一點時間顯示 Loading 畫面
+            }, 500);
         }
 
         // --- 以下為系統原始核心代碼 ---
