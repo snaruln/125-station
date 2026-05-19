@@ -10,7 +10,7 @@
             --alice-blue: #edf2fbff; --lavender: #e2eafcff; --lavender-2: #d7e3fcff;
             --periwinkle: #ccdbfdff; --periwinkle-2: #c1d3feff; --periwinkle-3: #b6ccfeff;
             --baby-blue-ice: #abc4ffff; --text-main: #3a4b73; --text-light: #6b7c9f;
-            --success: #81c784; --danger: #e57373;
+            --success: #81c784; --danger: #e57373; --warning: #ffb74d;
         }
 
         body {
@@ -95,7 +95,10 @@
 
         /* 新增按鈕與清除按鈕 */
         .add-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.5); border: 2px dashed var(--periwinkle-3); border-radius: 15px; color: var(--text-main); font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: none; }
-        .reset-data-btn { display: block; width: 100%; text-align: center; color: var(--danger); font-size: 0.9rem; margin-top: 40px; padding: 10px; text-decoration: underline; background: none; border: none; cursor: pointer; }
+        
+        /* 改版的匯出 Word 按鈕 */
+        .reset-data-btn { display: block; width: 100%; text-align: center; color: var(--warning); font-size: 0.95rem; margin-top: 40px; padding: 15px; background: rgba(255, 183, 77, 0.1); border: 1px solid var(--warning); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .reset-data-btn:active { background: rgba(255, 183, 77, 0.3); }
 
         /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
@@ -121,7 +124,7 @@
         .success-icon { font-size: 4rem; color: var(--success); margin-bottom: 10px; }
         .success-title { font-size: 1.5rem; color: var(--text-main); margin-bottom: 10px; }
         
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 300; justify-content: center; align-items: center; flex-direction: column; font-size: 1.2rem; font-weight: bold; color: var(--baby-blue-ice); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 300; justify-content: center; align-items: center; flex-direction: column; font-size: 1.2rem; font-weight: bold; color: var(--baby-blue-ice); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); text-align: center; padding: 20px;}
     </style>
 </head>
 <body>
@@ -151,7 +154,7 @@
             <button id="add-item-btn" class="add-btn" onclick="openAddModal()">＋ 新增項目 (設定區間)</button>
             <div id="tab-content"></div>
             
-            <button class="reset-data-btn" onclick="clearAllData()">⚠ 空間清除與系統重置</button>
+            <button class="reset-data-btn" onclick="exportWordAndClearPhotos()">📄 匯出圖文 Word 備份並釋放照片空間</button>
         </div>
     </div>
 
@@ -196,9 +199,9 @@
     <div class="modal" id="success-modal">
         <div class="modal-content">
             <div class="success-icon">✔</div>
-            <div class="success-title">付款與上傳完成！</div>
-            <p style="color: var(--text-light); margin-bottom: 25px;">項目已標記為結清，並自動解鎖畫面。</p>
-            <button class="save-btn" style="background: var(--success);" onclick="finishCheckout()">好的，回首頁</button>
+            <div class="success-title">操作完成！</div>
+            <p id="success-message" style="color: var(--text-light); margin-bottom: 25px;">項目已標記為結清，並自動解鎖畫面。</p>
+            <button class="save-btn" style="background: var(--success);" onclick="finishCheckout()">好的</button>
         </div>
     </div>
 
@@ -210,7 +213,6 @@
         let currentTab = 'rent';
         let currentItemKey = '';
         
-        // V9 原生儲存架構 (捨棄所有外部套件，保證 100% 寫入)
         let appData = JSON.parse(localStorage.getItem('rentDataV9')) || {
             checks_S: {}, checks_H: {}, 
             crossed_S: {}, crossed_H: {}, 
@@ -218,7 +220,6 @@
             water: [], energy: [], others: []
         };
 
-        // 網頁載入時直接啟動
         window.onload = function() {
             const savedUser = localStorage.getItem('activeUserV9');
             if (savedUser) {
@@ -228,21 +229,131 @@
             }
         };
 
-        // --- 核心防護存檔引擎 ---
+        // --- ⚙️ 全新功能：圖文 Word 產生器與空間釋放 ---
+        function exportWordAndClearPhotos() {
+            if(!confirm('⚠️ 準備匯出 Word 備份並釋放空間\n\n系統將自動下載一份包含「所有文字明細與收據照片」的 Word 檔案。\n\n下載後，系統會【清除網頁中的照片】釋放容量，但您的文字帳務紀錄皆會完整保留。確定要執行嗎？')) {
+                return;
+            }
+
+            document.getElementById('loading-overlay').innerHTML = "正在將所有照片與帳目打包成 Word...<br><span style='font-size:0.9rem; font-weight:normal; margin-top:10px;'>檔案較大，請耐心等候幾秒鐘</span>";
+            document.getElementById('loading-overlay').style.display = 'flex';
+
+            setTimeout(() => {
+                // Word 檔案的基礎 HTML 結構 (支援圖片嵌入)
+                let wordContent = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>Sandy & Hailey 租屋帳務備份</title>
+                    <style>
+                        body { font-family: 'Microsoft JhengHei', Arial, sans-serif; color: #333; }
+                        h1 { color: #3a4b73; text-align: center; border-bottom: 2px solid #abc4ff; padding-bottom: 10px; }
+                        h2 { color: #6b7c9f; margin-top: 30px; border-left: 5px solid #e2eafc; padding-left: 10px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; vertical-align: top; }
+                        th { background-color: #edf2fb; font-weight: bold; }
+                        .status { font-weight: bold; color: #81c784; }
+                        .unpaid { color: #e57373; }
+                        .photo-img { max-width: 200px; max-height: 200px; margin: 5px; border: 1px solid #eee; display: inline-block; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Sandy & Hailey 數位收租明細備份</h1>
+                    <p><strong>匯出日期：</strong> ${new Date().toLocaleDateString()}</p>
+                    <p>※ 本文件包含所有歷史帳目與已上傳之收據照片。</p>
+                `;
+
+                // 產生表格內容的工具函數
+                const renderTable = (title, items) => {
+                    if (items.length === 0) return '';
+                    let html = `<h2>${title}</h2><table><tr><th>日期/區間</th><th>項目名稱</th><th>金額 (AUD)</th><th>Sandy 狀態</th><th>Hailey 狀態</th><th>收據照片</th></tr>`;
+                    
+                    items.forEach(item => {
+                        let imgHtml = '';
+                        if (appData.photos[item.key] && appData.photos[item.key].length > 0) {
+                            appData.photos[item.key].forEach(base64 => {
+                                imgHtml += `<img class="photo-img" src="${base64}" />`;
+                            });
+                        } else {
+                            imgHtml = '<span style="color:#999;">無照片</span>';
+                        }
+                        
+                        html += `<tr>
+                            <td>${item.date}</td>
+                            <td>${item.name}</td>
+                            <td>${item.amount}</td>
+                            <td class="${item.statusS === '已結清' ? 'status' : 'unpaid'}">${item.statusS}</td>
+                            <td class="${item.statusH === '已結清' ? 'status' : 'unpaid'}">${item.statusH}</td>
+                            <td>${imgHtml}</td>
+                        </tr>`;
+                    });
+                    html += `</table>`;
+                    return html;
+                };
+
+                // 收集資料
+                let rentItems = [], netItems = [], waterItems = [], energyItems = [], otherItems = [];
+                
+                generateUTC_Dates('2026-05-17', 7, 52).forEach(date => {
+                    const key = `rent_${date}`;
+                    rentItems.push({ key: key, date: date, name: '-', amount: 'S 500 / H 400', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
+                });
+
+                generateUTC_Months('2026-05-15', 12).forEach(date => {
+                    const key = `net_${date}`;
+                    netItems.push({ key: key, date: date, name: '-', amount: '36', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
+                });
+
+                const parseCustomItems = (typeStr, arr) => {
+                    appData[typeStr].forEach(item => {
+                        const key = `${typeStr}_${item.id}`;
+                        arr.push({ key: key, date: item.date, name: item.name || '-', amount: item.amount, statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
+                    });
+                };
+
+                parseCustomItems('water', waterItems);
+                parseCustomItems('energy', energyItems);
+                parseCustomItems('others', otherItems);
+
+                // 拼裝 HTML
+                wordContent += renderTable('每週房租', rentItems);
+                wordContent += renderTable('網路費', netItems);
+                wordContent += renderTable('水費', waterItems);
+                wordContent += renderTable('電費煤氣', energyItems);
+                wordContent += renderTable('其他雜項', otherItems);
+                wordContent += `</body></html>`;
+
+                // 觸發 Word 下載
+                const blob = new Blob(['\ufeff', wordContent], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                const today = new Date().toISOString().split('T')[0];
+                link.setAttribute("href", url);
+                link.setAttribute("download", `租屋帳務備份_含照片_${today}.doc`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // 僅清除照片，保留文字！
+                appData.photos = {}; 
+                saveData(); 
+
+                document.getElementById('loading-overlay').style.display = 'none';
+                
+                // 顯示成功視窗
+                document.getElementById('success-message').innerText = '圖文 Word 檔案已開始下載！\n\n網頁中的照片已清空以釋放空間，但您的所有文字帳務紀錄已為您保留。';
+                document.getElementById('success-modal').style.display = 'flex';
+                
+            }, 500); // 給瀏覽器一點時間顯示 Loading 畫面
+        }
+
+        // --- 以下為系統原始核心代碼 ---
         function saveData() { 
             try {
                 localStorage.setItem('rentDataV9', JSON.stringify(appData)); 
             } catch(e) {
-                alert('🚨 存檔失敗！可能是這台裝置的網頁暫存空間已滿，請先刪除幾張舊照片後再試。');
-                console.error(e);
-            }
-        }
-
-        function clearAllData() {
-            if(confirm('⚠️ 警告：這會將這台設備裡「所有的」帳務與照片紀錄清空！確定要重置系統嗎？')) {
-                localStorage.clear();
-                alert('已清空資料，將重新載入頁面。');
-                location.reload();
+                alert('🚨 儲存失敗！可能是照片太多把暫存空間撐爆了，請點擊下方的「匯出圖文 Word」按鈕來釋放空間。');
             }
         }
 
@@ -255,12 +366,14 @@
             renderTab();
         }
 
-        function logout() {
-            currentUser = '';
-            localStorage.removeItem('activeUserV9'); 
-            document.getElementById('main-container').style.display = 'none';
-            document.getElementById('login-overlay').style.display = 'flex';
-        }
+        document.addEventListener('DOMContentLoaded', function() {
+            window.logout = function() {
+                currentUser = '';
+                localStorage.removeItem('activeUserV9'); 
+                document.getElementById('main-container').style.display = 'none';
+                document.getElementById('login-overlay').style.display = 'flex';
+            };
+        });
 
         function switchTab(tab) {
             currentTab = tab;
@@ -336,7 +449,7 @@
 
             div.innerHTML = `
                 ${checkboxHTML}
-                <div class="item-info ${textClass}" onclick="openDetailModal('${key}', '${dateStr}', '${subtitleStr}', '${displayPrice}')">
+                <div class="item-info ${textClass}" onclick="openDetailModal('${key}', '${dateStr}', subtitleStr ? '${subtitleStr}' : '', '${displayPrice}')">
                     <div class="item-date">${dateStr}</div>
                     ${subtitleHTML}
                     <div class="item-price">${displayPrice} AUD</div>
@@ -467,6 +580,7 @@
 
         function handleBatchPhotoUpload(input) {
             if (input.files && input.files[0]) {
+                document.getElementById('loading-overlay').innerHTML = "照片壓縮存檔中，請稍候...";
                 document.getElementById('loading-overlay').style.display = 'flex';
                 
                 const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
@@ -483,6 +597,8 @@
                     }
                     saveData();
                     document.getElementById('loading-overlay').style.display = 'none';
+                    
+                    document.getElementById('success-message').innerText = '項目已標記為結清，並自動解鎖畫面。';
                     document.getElementById('success-modal').style.display = 'flex';
                 });
             }
@@ -491,6 +607,7 @@
 
         function handleSinglePhotoUpload(input) {
             if (input.files && input.files[0]) {
+                document.getElementById('loading-overlay').innerHTML = "照片壓縮存檔中，請稍候...";
                 document.getElementById('loading-overlay').style.display = 'flex';
                 compressImage(input.files[0], (base64) => {
                     if(!appData.photos[currentItemKey]) appData.photos[currentItemKey] = [];
@@ -511,36 +628,22 @@
 
         function compressImage(file, callback) {
             const reader = new FileReader();
-            
-            reader.onerror = () => {
-                alert('讀取檔案失敗！這可能是因為照片格式不支援。');
-                document.getElementById('loading-overlay').style.display = 'none';
-            };
-
+            reader.onerror = () => { alert('檔案讀取失敗！'); document.getElementById('loading-overlay').style.display = 'none'; };
             reader.onload = event => {
                 const img = new Image();
-                img.onerror = () => {
-                    alert('無法處理這張照片。');
-                    document.getElementById('loading-overlay').style.display = 'none';
-                };
+                img.onerror = () => { alert('無法處理照片。'); document.getElementById('loading-overlay').style.display = 'none'; };
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 500; // 強制極限壓縮，確保絕不塞爆 5MB
-                    let finalWidth = img.width;
-                    let finalHeight = img.height;
-                    
+                    const MAX_WIDTH = 500; 
+                    let finalWidth = img.width; let finalHeight = img.height;
                     if (img.width > MAX_WIDTH) {
                         const scaleSize = MAX_WIDTH / img.width;
-                        finalWidth = MAX_WIDTH;
-                        finalHeight = img.height * scaleSize;
+                        finalWidth = MAX_WIDTH; finalHeight = img.height * scaleSize;
                     }
-                    
-                    canvas.width = finalWidth;
-                    canvas.height = finalHeight;
+                    canvas.width = finalWidth; canvas.height = finalHeight;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    callback(canvas.toDataURL('image/jpeg', 0.4)); // 超小體積儲存
+                    callback(canvas.toDataURL('image/jpeg', 0.4)); 
                 }
                 img.src = event.target.result;
             }
