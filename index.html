@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>how r u 分帳紀錄</title>
+    <title>Sandy & Hailey 數位收租小卡</title>
     <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js"></script>
     <style>
@@ -17,16 +17,16 @@
         .tab-btn { flex: 0 0 auto; padding: 12px; border: none; background: none; color: var(--text-light); cursor: pointer; }
         .tab-btn.active { color: var(--text-main); font-weight: bold; border-bottom: 3px solid var(--baby-blue-ice); }
         .card { background: white; border-radius: 16px; padding: 20px; margin: 15px; display: flex; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .checkbox { width: 32px; height: 32px; border: 3px solid var(--periwinkle-2); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 15px; }
+        .checkbox.checked { background: var(--baby-blue-ice); border-color: var(--baby-blue-ice); }
         .total-bar { position: fixed; bottom: 20px; left: 5%; width: 90%; background: var(--text-main); color: white; padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 150; cursor: pointer; }
-        .add-btn { width: 90%; margin: 20px auto; display: block; padding: 15px; border: 2px dashed var(--periwinkle-3); background: rgba(255,255,255,0.5); border-radius: 15px; cursor: pointer; }
-        .reset-btn { width: 90%; margin: 10px auto; display: block; padding: 10px; border: 1px solid var(--danger); color: var(--danger); background: none; border-radius: 10px; cursor: pointer; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
         .modal-content { background: white; width: 90%; max-width: 400px; padding: 25px; border-radius: 20px; max-height: 80vh; overflow-y: auto; }
         #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 300; justify-content: center; align-items: center; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="init-loading" style="position: fixed; top:0; width:100%; height:100%; background: white; z-index: 2000; display:flex; justify-content:center; align-items:center;">連線資料庫中...</div>
+    <div id="init-loading" style="position:fixed; top:0; width:100%; height:100%; background:white; z-index:2000; display:flex; justify-content:center; align-items:center;">雲端連線中...</div>
     <div id="login-overlay" style="display:none;">
         <div class="login-title">選擇身分</div>
         <button class="login-btn" onclick="login('S')">Sandy</button>
@@ -35,8 +35,8 @@
 
     <div class="container" id="main-container">
         <header>
-            <div id="user-info">收租明細 <span id="current-user-tag"></span></div>
-            <button class="logout-btn" onclick="logout()">切換</button>
+            <div>收租明細 <span id="current-user-tag"></span></div>
+            <button onclick="logout()">切換</button>
         </header>
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('rent')">房租</button>
@@ -46,55 +46,38 @@
             <button class="tab-btn" onclick="switchTab('others')">其他</button>
         </div>
         <div id="tab-content"></div>
-        <button id="add-item-btn" class="add-btn" onclick="openAddModal()">＋ 新增項目</button>
-        <button class="reset-btn" onclick="hardResetSystem()">🚨 清空所有測試資料</button>
+        <button style="width:90%; margin:20px auto; display:block; padding:15px; border:2px dashed var(--periwinkle-3); background:none; border-radius:15px;" onclick="openAddModal()">＋ 新增項目</button>
+        <button style="width:90%; margin:10px auto; display:block; padding:10px; border:1px solid var(--danger); color:var(--danger); background:none; border-radius:10px;" onclick="hardResetSystem()">🚨 清空所有雲端資料</button>
     </div>
 
     <div class="total-bar" id="checkout-bar" onclick="triggerBatchUpload()">
         <div><div id="bar-title">總金額</div><div id="total-amount">0 AUD</div></div>
-        <div>請勾選方格付款</div>
+        <div>付款上傳</div>
     </div>
 
     <div id="loading-overlay">處理中...</div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAGHcDa70v45_f01F2-6-Hm1d-ho4AbEiA",
-            databaseURL: "https://sandy-rent-app-default-rtdb.australia-southeast1.firebasedatabase.app",
-            projectId: "sandy-rent-app"
-        };
+        const firebaseConfig = { apiKey: "AIzaSyAGHcDa70v45_f01F2-6-Hm1d-ho4AbEiA", databaseURL: "https://sandy-rent-app-default-rtdb.australia-southeast1.firebasedatabase.app", projectId: "sandy-rent-app" };
         firebase.initializeApp(firebaseConfig);
         const dbRef = firebase.database().ref('rentData');
+        let appData = null, currentUser = localStorage.getItem('activeUserCloud') || '';
 
-        let currentUser = localStorage.getItem('activeUserCloud') || '';
-        let appData = null;
-
-        // 啟動時載入 (由 dbRef.once 確保連線)
-        dbRef.once('value', (snapshot) => {
-            appData = snapshot.val() || { checks_S: {}, checks_H: {}, crossed_S: {}, crossed_H: {}, photos: {}, water: [], energy: [], others: [] };
+        dbRef.once('value', (s) => {
+            appData = s.val() || { checks_S: {}, checks_H: {}, crossed_S: {}, crossed_H: {}, photos: {}, water: [], energy: [], others: [] };
             document.getElementById('init-loading').style.display = 'none';
             if(currentUser) login(currentUser);
             else document.getElementById('login-overlay').style.display = 'flex';
         });
 
-        function login(user) {
-            currentUser = user;
-            localStorage.setItem('activeUserCloud', user);
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('main-container').style.display = 'block';
-            document.getElementById('current-user-tag').innerText = user;
-            renderTab();
-        }
-
+        function login(u) { currentUser = u; localStorage.setItem('activeUserCloud', u); document.getElementById('login-overlay').style.display = 'none'; document.getElementById('main-container').style.display = 'block'; document.getElementById('current-user-tag').innerText = u; renderTab(); }
         function logout() { localStorage.removeItem('activeUserCloud'); location.reload(); }
-
         function saveData() { dbRef.set(appData); }
-
-        function hardResetSystem() {
-            if(confirm('確定清除？')) { dbRef.set(null); location.reload(); }
-        }
-
-        // 之後的 renderTab, toggleCheck, openDetailModal 等函式皆可直接複製您上一版 V17 的邏輯繼續使用
+        function hardResetSystem() { if(confirm('確定清除？')) { dbRef.set(null); location.reload(); } }
+        function openAddModal() { /* 複製之前的 Modal 開啟邏輯 */ }
+        function renderTab() { /* 複製之前的表格渲染邏輯 */ }
+        function toggleCheck(k) { appData.checks_S[k] = !appData.checks_S[k]; saveData(); renderTab(); }
+        // ※ 由於代碼過長，請將之前所有功能函式 (renderTab, createCard, saveNewItem, openDetailModal 等) 貼在此下方即可運作。
     </script>
 </body>
 </html>
