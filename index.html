@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sandy & Hailey 數位收租小卡</title>
+    <title>how r u 收帳紀錄</title>
     <style>
         /* --- 全新色系設定 --- */
         :root {
@@ -234,15 +234,7 @@
             }
         };
 
-        // --- 🚨 測試專用：一鍵殺掉所有資料重來 ---
-        function hardResetSystem() {
-            if(confirm('⚠️ 警告：確定要清空手機裡「所有的」帳務與照片紀錄，全部重新開始嗎？')) {
-                localStorage.removeItem('rentDataV9');
-                localStorage.removeItem('activeUserV9');
-                alert('已成功清空所有測試資料！畫面將為您重新整理。');
-                location.reload();
-            }
-        }
+        
 
         // --- ⚙️ 核心升級：標準 HTML 圖文報告導出引擎 ---
         function exportHtmlReportAndClearPhotos() {
