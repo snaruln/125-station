@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>how r u 收帳紀錄</title>
+    <title>how r u 分帳紀錄</title>
     <style>
         /* --- 全新色系設定 --- */
         :root {
@@ -74,12 +74,16 @@
         .checkbox.checked { background-color: var(--baby-blue-ice); border-color: var(--baby-blue-ice); }
         .checkbox.checked::after { content: '✔'; color: white; font-size: 1.2rem; font-weight: bold; }
         .paid-badge { font-size: 0.8rem; background: #e0e0e0; color: #757575; padding: 5px 8px; border-radius: 8px; font-weight: bold; text-align: center; }
+        
+        /* 免付款狀態 */
+        .free-badge { font-size: 0.8rem; background: transparent; color: #b0bec5; border: 1px dashed #b0bec5; padding: 4px 6px; border-radius: 8px; font-weight: bold; text-align: center; }
 
         .item-info { flex-grow: 1; cursor: pointer; transition: 0.3s; width: calc(100% - 55px); }
         .item-date { font-size: 1.1rem; font-weight: bold; margin-bottom: 2px; line-height: 1.3; }
         .item-subtitle { font-size: 0.95rem; color: var(--text-light); margin-bottom: 5px; font-weight: bold; }
         .item-price { font-size: 1rem; color: var(--baby-blue-ice); font-weight: bold; }
         .crossed-out .item-date, .crossed-out .item-subtitle, .crossed-out .item-price { text-decoration: line-through; color: #b0bec5; }
+        .dimmed { opacity: 0.6; }
 
         /* 浮動總金額 Bar */
         .total-bar {
@@ -93,15 +97,11 @@
         .total-bar .amount { font-size: 1.6rem; font-weight: bold; }
         .total-bar .hint { font-size: 0.9rem; opacity: 0.9; margin-top: 4px; }
 
-        /* 操作按鈕群 */
+        /* 操作按鈕 */
         .add-btn { width: 100%; padding: 15px; background: rgba(255,255,255,0.5); border: 2px dashed var(--periwinkle-3); border-radius: 15px; color: var(--text-main); font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: none; }
-        
-        .reset-data-btn { display: block; width: 100%; text-align: center; color: var(--warning); font-size: 0.95rem; margin-top: 40px; padding: 15px; background: rgba(255, 183, 77, 0.1); border: 1px solid var(--warning); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .reset-data-btn:active { background: rgba(255, 183, 77, 0.3); }
-
-        /* 新增：終極測試刪除按鈕樣式 */
+        .export-btn { display: block; width: 100%; text-align: center; color: var(--warning); font-size: 0.95rem; margin-top: 40px; padding: 15px; background: rgba(255, 183, 77, 0.1); border: 1px solid var(--warning); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .export-btn:active { background: rgba(255, 183, 77, 0.3); }
         .hard-reset-btn { display: block; width: 100%; text-align: center; color: var(--danger); font-size: 0.9rem; margin-top: 15px; padding: 15px; background: rgba(229, 115, 115, 0.1); border: 1px solid var(--danger); border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .hard-reset-btn:active { background: rgba(229, 115, 115, 0.3); }
 
         /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
@@ -110,7 +110,7 @@
         
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-main); font-size: 0.9rem; }
-        .input-group input { width: 100%; padding: 12px; border: 2px solid var(--lavender); border-radius: 10px; box-sizing: border-box; font-size: 1rem; }
+        .input-group input, .input-group select { width: 100%; padding: 12px; border: 2px solid var(--lavender); border-radius: 10px; box-sizing: border-box; font-size: 1rem; background: white; }
         .dual-date { display: flex; gap: 10px; }
         .dual-date > div { flex: 1; }
         .save-btn { width: 100%; padding: 15px; background: var(--baby-blue-ice); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
@@ -122,11 +122,9 @@
         .photo-add-icon { font-size: 2rem; color: var(--periwinkle-2); }
         .delete-photo-btn { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: bold; cursor: pointer; }
 
-        /* 成功視窗專屬樣式 */
         #success-modal .modal-content { text-align: center; padding: 40px 20px; }
         .success-icon { font-size: 4rem; color: var(--success); margin-bottom: 10px; }
         .success-title { font-size: 1.5rem; color: var(--text-main); margin-bottom: 10px; }
-        
         #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 300; justify-content: center; align-items: center; flex-direction: column; font-size: 1.2rem; font-weight: bold; color: var(--baby-blue-ice); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); text-align: center; padding: 20px;}
     </style>
 </head>
@@ -157,8 +155,7 @@
             <button id="add-item-btn" class="add-btn" onclick="openAddModal()">＋ 新增項目 (設定區間)</button>
             <div id="tab-content"></div>
             
-            <button class="reset-data-btn" onclick="exportHtmlReportAndClearPhotos()">📦 匯出圖文對帳報告並釋放照片空間</button>
-            
+            <button class="export-btn" onclick="exportHtmlReportAndClearPhotos()">📦 匯出圖文對帳報告並釋放照片空間</button>
             <button class="hard-reset-btn" onclick="hardResetSystem()">🚨 刪除所有測試資料 (重新開始)</button>
         </div>
     </div>
@@ -175,10 +172,21 @@
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('add-modal')">&times;</span>
             <h3 style="margin-top:0;">新增紀錄</h3>
+            
             <div class="input-group" id="name-input-group" style="display: none;">
                 <label>項目名稱</label>
                 <input type="text" id="new-item-name" placeholder="例如：買衛生紙、換燈泡">
             </div>
+            
+            <div class="input-group" id="split-input-group" style="display: none;">
+                <label>分帳方式</label>
+                <select id="new-item-split">
+                    <option value="half">共同平分 (各付 50%)</option>
+                    <option value="sandy">僅 Sandy 需付款</option>
+                    <option value="hailey">僅 Hailey 需付款</option>
+                </select>
+            </div>
+
             <div class="input-group dual-date">
                 <div><label>開始日期</label><input type="date" id="new-date-start"></div>
                 <div><label>結束日期 (選填)</label><input type="date" id="new-date-end"></div>
@@ -218,7 +226,8 @@
         let currentTab = 'rent';
         let currentItemKey = '';
         
-        let appData = JSON.parse(localStorage.getItem('rentDataV9')) || {
+        // V10 資料庫：支援分帳邏輯
+        let appData = JSON.parse(localStorage.getItem('rentDataV10')) || {
             checks_S: {}, checks_H: {}, 
             crossed_S: {}, crossed_H: {}, 
             photos: {}, 
@@ -226,7 +235,7 @@
         };
 
         window.onload = function() {
-            const savedUser = localStorage.getItem('activeUserV9');
+            const savedUser = localStorage.getItem('activeUserV10');
             if (savedUser) {
                 login(savedUser); 
             } else {
@@ -234,9 +243,15 @@
             }
         };
 
-        
+        function hardResetSystem() {
+            if(confirm('⚠️ 警告：確定要清空手機裡「所有的」帳務與照片紀錄，全部重新開始嗎？')) {
+                localStorage.removeItem('rentDataV10');
+                localStorage.removeItem('activeUserV10');
+                alert('已成功清空所有測試資料！畫面將為您重新整理。');
+                location.reload();
+            }
+        }
 
-        // --- ⚙️ 核心升級：標準 HTML 圖文報告導出引擎 ---
         function exportHtmlReportAndClearPhotos() {
             if(!confirm('⚠️ 準備下載對帳報告\n\n系統將自動下載一份包含「所有帳務明細表格與照片」的獨立 HTML 網頁文件，可在任何手機或電腦上直接點開瀏覽。\n\n下載後將自動清空網頁照片以釋放空間，文字紀錄則會繼續保留。確定下載嗎？')) {
                 return;
@@ -325,7 +340,17 @@
                 const parseCustomItems = (typeStr, arr) => {
                     appData[typeStr].forEach(item => {
                         const key = `${typeStr}_${item.id}`;
-                        arr.push({ key: key, date: item.date, name: item.name || '無備註', amount: item.amount + ' (全額)', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
+                        
+                        // 處理分帳顯示文字
+                        let splitText = '';
+                        if(typeStr === 'others') {
+                            if(item.split === 'sandy') splitText = ' (僅Sandy負擔)';
+                            else if(item.split === 'hailey') splitText = ' (僅Hailey負擔)';
+                            else splitText = ' (共同平分)';
+                        }
+                        let finalName = (item.name || '無備註') + splitText;
+                        
+                        arr.push({ key: key, date: item.date, name: finalName, amount: item.amount + ' (總額)', statusS: appData.crossed_S[key] ? "已結清" : "未付", statusH: appData.crossed_H[key] ? "已結清" : "未付" });
                     });
                 };
 
@@ -337,7 +362,7 @@
                 reportHtml += renderTable('網路費用支付紀錄 (每月)', netItems);
                 reportHtml += renderTable('水費公攤明細', waterItems);
                 reportHtml += renderTable('電費與煤氣明細', energyItems);
-                reportHtml += renderTable('其他雜項開支公攤', otherItems);
+                reportHtml += renderTable('其他雜項分帳', otherItems);
                 reportHtml += `</div></body></html>`;
 
                 const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8;' });
@@ -356,16 +381,15 @@
 
                 document.getElementById('loading-overlay').style.display = 'none';
                 
-                document.getElementById('success-message').innerHTML = '<b>圖文報告檔案已成功導出下載！</b><br><br>這份文件保證可以在任何手機、平板或電腦上直接點開。裡面的收據圖片點擊還能放大檢視喔！';
+                document.getElementById('success-message').innerHTML = '<b>圖文報告檔案已成功導出下載！</b><br><br>這份文件保證可以在任何手機、平板或電腦上直接點開。';
                 document.getElementById('success-modal').style.display = 'flex';
                 
             }, 500);
         }
 
-        // --- 以下為系統最穩定的原生核心代碼 ---
         function saveData() { 
             try {
-                localStorage.setItem('rentDataV9', JSON.stringify(appData)); 
+                localStorage.setItem('rentDataV10', JSON.stringify(appData)); 
             } catch(e) {
                 alert('🚨 儲存失敗！照片量可能已達上限，請點擊下方的「匯出圖文報告」按鈕將照片打包下載並清空網頁空間。');
             }
@@ -373,7 +397,7 @@
 
         function login(user) {
             currentUser = user;
-            localStorage.setItem('activeUserV9', user); 
+            localStorage.setItem('activeUserV10', user); 
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('main-container').style.display = 'block';
             document.getElementById('current-user-tag').innerText = user === 'S' ? 'Sandy' : 'Hailey';
@@ -383,7 +407,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             window.logout = function() {
                 currentUser = '';
-                localStorage.removeItem('activeUserV9'); 
+                localStorage.removeItem('activeUserV10'); 
                 document.getElementById('main-container').style.display = 'none';
                 document.getElementById('login-overlay').style.display = 'flex';
             };
@@ -412,31 +436,49 @@
             if (currentTab === 'rent') {
                 const rentAmount = currentUser === 'S' ? 500 : 400;
                 generateUTC_Dates('2026-05-17', 7, 52).forEach(date => {
-                    container.appendChild(createCard(`rent_${date}`, date, '', rentAmount));
+                    container.appendChild(createCard(`rent_${date}`, date, '', rentAmount, true));
                 });
             } else if (currentTab === 'net') {
                 generateUTC_Months('2026-05-15', 12).forEach(date => {
-                    container.appendChild(createCard(`net_${date}`, date, '', 36));
+                    container.appendChild(createCard(`net_${date}`, date, '', 36, true));
                 });
-            } else if (['water', 'energy', 'others'].includes(currentTab)) {
-                let items = appData[currentTab].sort((a,b) => {
-                    let dateA = a.date.split(' ~ ')[0];
-                    let dateB = b.date.split(' ~ ')[0];
-                    return new Date(dateB) - new Date(dateA);
-                });
+            } else if (['water', 'energy'].includes(currentTab)) {
+                let items = appData[currentTab].sort((a,b) => new Date(b.date.split(' ~ ')[0]) - new Date(a.date.split(' ~ ')[0]));
                 
                 items.forEach(item => {
-                    let displayAmount = item.amount;
-                    if (['water', 'energy'].includes(currentTab) && currentUser === 'H') {
+                    let displayAmount = currentUser === 'H' ? item.amount / 2 : item.amount;
+                    let subtitle = currentUser === 'S' ? `帳單總額 (結帳將自動計算半價 ${item.amount/2})` : '需付一半金額';
+                    container.appendChild(createCard(`${currentTab}_${item.id}`, item.date, subtitle, displayAmount, true));
+                });
+            } else if (currentTab === 'others') {
+                let items = appData[currentTab].sort((a,b) => new Date(b.date.split(' ~ ')[0]) - new Date(a.date.split(' ~ ')[0]));
+                
+                items.forEach(item => {
+                    let displayAmount = 0;
+                    let subtitle = item.name || '';
+                    let isPayable = true;
+
+                    if (item.split === 'half') {
                         displayAmount = item.amount / 2;
+                        subtitle += ' (共同平分)';
+                    } else if (item.split === 'sandy') {
+                        displayAmount = currentUser === 'S' ? item.amount : 0;
+                        subtitle += ' (僅 Sandy 負擔)';
+                        if (currentUser === 'H') isPayable = false;
+                    } else if (item.split === 'hailey') {
+                        displayAmount = currentUser === 'H' ? item.amount : 0;
+                        subtitle += ' (僅 Hailey 負擔)';
+                        if (currentUser === 'S') isPayable = false;
                     }
-                    container.appendChild(createCard(`${currentTab}_${item.id}`, item.date, item.name || '', displayAmount));
+
+                    container.appendChild(createCard(`${currentTab}_${item.id}`, item.date, subtitle, displayAmount, isPayable));
                 });
             }
             updateTotal();
         }
 
-        function createCard(key, dateStr, subtitleStr, displayPrice) {
+        // 新增 isPayable 判斷：如果是不用付錢的一方，隱藏打勾框
+        function createCard(key, dateStr, subtitleStr, displayPrice, isPayable) {
             const checks = currentUser === 'S' ? appData.checks_S : appData.checks_H;
             const crossed = currentUser === 'S' ? appData.crossed_S : appData.crossed_H;
             
@@ -452,6 +494,10 @@
             if (isCrossed) {
                 checkboxHTML = `<div class="checkbox-container"><div class="paid-badge">✔ 已付</div></div>`;
                 textClass = 'crossed-out';
+            } else if (!isPayable) {
+                // 不用付錢的人
+                checkboxHTML = `<div class="checkbox-container"><div class="free-badge">免付</div></div>`;
+                textClass = 'dimmed';
             } else {
                 checkboxHTML = `
                 <div class="checkbox-container">
@@ -497,7 +543,11 @@
                     }
                     if (type === 'others') {
                         const item = appData.others.find(i => i.id == id);
-                        if (item) total += parseFloat(item.amount);
+                        if (item) {
+                            if (item.split === 'half') total += (item.amount / 2);
+                            else if (item.split === 'sandy' && currentUser === 'S') total += parseFloat(item.amount);
+                            else if (item.split === 'hailey' && currentUser === 'H') total += parseFloat(item.amount);
+                        }
                     }
                 }
             }
@@ -522,7 +572,11 @@
             document.getElementById('new-amount').value = '';
             document.getElementById('new-item-name').value = '';
             
+            // 開啟分帳選項
             document.getElementById('name-input-group').style.display = (currentTab === 'others') ? 'block' : 'none';
+            document.getElementById('split-input-group').style.display = (currentTab === 'others') ? 'block' : 'none';
+            document.getElementById('new-item-split').value = 'half'; // 預設平分
+
             document.getElementById('add-modal').style.display = 'flex';
         }
 
@@ -531,6 +585,7 @@
             const end = document.getElementById('new-date-end').value;
             const amount = document.getElementById('new-amount').value;
             const name = document.getElementById('new-item-name').value;
+            const split = document.getElementById('new-item-split').value;
             
             if(!start || !amount) return alert('請至少填寫開始日期與金額');
             if(currentTab === 'others' && !name) return alert('請填寫項目名稱');
@@ -538,7 +593,10 @@
             let finalDateStr = end ? `${start} ~ ${end}` : start;
             
             let newItem = { id: Date.now(), date: finalDateStr, amount: amount };
-            if(currentTab === 'others') newItem.name = name; 
+            if(currentTab === 'others') {
+                newItem.name = name; 
+                newItem.split = split;
+            }
             
             appData[currentTab].push(newItem);
             saveData();
